@@ -1,0 +1,38 @@
+// Copyright 2026.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package ports
+
+import "github.com/maybewaityou/lazytmux/internal/core/domain"
+
+// SessionRepository is the data-source port (implemented by the tmux CLI adapter).
+type SessionRepository interface {
+	ListSessions() ([]domain.Session, error)
+	ListWindows(sessionName string) ([]domain.Window, error)
+	CreateSession(name string) error
+	KillSession(name string) error
+	RenameSession(oldName, newName string) error
+	// SwitchOrAttach runs the appropriate "enter" command. It returns a sentinel
+	// error ErrSuspendRequired when the TUI must be suspended for an interactive
+	// attach (i.e. not running inside tmux).
+	SwitchOrAttach(name string) error
+}
+
+// ErrSuspendRequired signals that the caller must suspend the TUI and run an
+// interactive attach out-of-band (used when $TMUX is unset).
+var ErrSuspendRequired = errSentinel("suspend required for interactive attach")
+
+type errSentinel string
+
+func (e errSentinel) Error() string { return string(e) }
