@@ -70,3 +70,10 @@ func (d *SessionDetails) Render(s domain.Session) {
 	}
 	d.SetText(b.String())
 }
+
+// RenderEmpty replaces the pane with a placeholder when nothing is selected
+// (e.g. the session list is empty after a kill). Mirrors the initial state set
+// in NewSessionDetails.
+func (d *SessionDetails) RenderEmpty(msg string) {
+	d.SetText("[" + colorSecondary + "]" + msg + "[-]")
+}

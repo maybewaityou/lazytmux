@@ -147,10 +147,28 @@ func (t *tui) refresh() {
 		t.statusBar.SetStatus("[" + colorRed + "]tmux error: " + err.Error() + "[-]")
 		t.allCache = nil
 		t.sessionList.UpdateSessions(nil)
+		t.details.RenderEmpty("no sessions")
 		return
 	}
 	t.allCache = sessions
 	t.applySortAndRender()
+	t.syncDetails()
+	t.refreshStatusBarHints()
+}
+
+// syncDetails mirrors the details pane to the list's current selection.
+//
+// tview's List.SetCurrentItem only fires SetChangedFunc when the index actually
+// changes, and UpdateSessions Clear()s the list first (which resets the cursor
+// to 0) before calling SetCurrentItem(0) — so programmatic reloads never trigger
+// handleSelectionChange. After a kill/create/rename/refresh the right pane would
+// otherwise keep showing stale data, so we re-sync explicitly here.
+func (t *tui) syncDetails() {
+	if s, ok := t.sessionList.GetSelected(); ok {
+		t.handleSelectionChange(s)
+		return
+	}
+	t.details.RenderEmpty("no sessions")
 }
 
 func (t *tui) applySortAndRender() {
@@ -197,8 +215,20 @@ func (t *tui) setStatusTemporary(msg string) {
 		t.statusTimer.Stop()
 	}
 	t.statusTimer = time.AfterFunc(statusToastTimeout, func() {
-		t.app.QueueUpdateDraw(t.statusBar.ResetHints)
+		t.app.QueueUpdateDraw(t.refreshStatusBarHints)
 	})
+}
+
+// refreshStatusBarHints restores the footer line appropriate for the current
+// list state. After a transient toast ("Refreshed", "copied: ...") the timer
+// fires on its own goroutine, so we route through QueueUpdateDraw and pick the
+// empty-state or full hint set based on whether any session is loaded.
+func (t *tui) refreshStatusBarHints() {
+	if len(t.allCache) == 0 {
+		t.statusBar.ShowEmpty()
+		return
+	}
+	t.statusBar.ResetHints()
 }
 
 // showKillConfirmModal asks the user to confirm before killing a session,

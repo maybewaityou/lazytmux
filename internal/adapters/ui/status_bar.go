@@ -39,6 +39,11 @@ func (s *StatusBar) SetStatus(msg string) { s.SetText(msg) }
 // ResetHints restores the default keybinding hints.
 func (s *StatusBar) ResetHints() { s.SetText(defaultHints()) }
 
+// ShowEmpty swaps in the minimal empty-state hint. With no sessions selected,
+// most keys (Enter/copy/rename/kill/tags/pin/sort) are no-ops, so we surface
+// only the actions that still work: create, refresh, quit.
+func (s *StatusBar) ShowEmpty() { s.SetText(emptyHints()) }
+
 // defaultHints follows the same ordering rule as lazyssh:
 // Navigate → primary action → feature keys → Pin → Search → Quit.
 func defaultHints() string {
@@ -54,5 +59,16 @@ func defaultHints() string {
 		"[" + k + "]r[-] Refresh  • " +
 		"[" + k + "]p[-] Pin/Unpin  • " +
 		"[" + k + "]/[-] Search  • " +
+		"[" + k + "]q[-] Quit"
+}
+
+// emptyHints is the footer for the no-sessions state — a lead-in label plus the
+// few keys that remain meaningful when the list is empty.
+func emptyHints() string {
+	k := colorCyan
+	return "[" + k + "]No sessions[-]  •  " +
+		"[" + k + "]a[-] New  •  " +
+		"[" + k + "]r[-] Refresh  •  " +
+		"[" + k + "]/[-] Search  •  " +
 		"[" + k + "]q[-] Quit"
 }
