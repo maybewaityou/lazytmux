@@ -1,0 +1,106 @@
+// Copyright 2026.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package services
+
+import (
+	"testing"
+	"time"
+
+	"github.com/maybewaityou/lazytmux/internal/core/domain"
+	"github.com/maybewaityou/lazytmux/internal/core/ports"
+)
+
+type fakeRepo struct {
+	sessions []domain.Session
+	windows  []domain.Window
+	enterErr error
+	calls    []string
+}
+
+func (f *fakeRepo) ListSessions() ([]domain.Session, error) {
+	f.calls = append(f.calls, "list-sessions")
+	return f.sessions, nil
+}
+func (f *fakeRepo) ListWindows(string) ([]domain.Window, error) { return f.windows, nil }
+func (f *fakeRepo) CreateSession(name string) error             { f.calls = append(f.calls, "create:"+name); return nil }
+func (f *fakeRepo) KillSession(name string) error               { f.calls = append(f.calls, "kill:"+name); return nil }
+func (f *fakeRepo) RenameSession(o, n string) error             { f.calls = append(f.calls, "rename:"+o+"->"+n); return nil }
+func (f *fakeRepo) AttachInteractive(name string) error         { f.calls = append(f.calls, "attach:"+name); return nil }
+func (f *fakeRepo) SwitchOrAttach(name string) error {
+	f.calls = append(f.calls, "enter:"+name)
+	return f.enterErr
+}
+
+type fakeMeta struct {
+	pins map[string]bool
+	tags map[string][]string
+}
+
+func newFakeMeta() *fakeMeta {
+	return &fakeMeta{pins: map[string]bool{}, tags: map[string][]string{}}
+}
+
+func (m *fakeMeta) IsPinned(n string) bool                  { return m.pins[n] }
+func (m *fakeMeta) SetPinned(n string, p bool) error        { if p { m.pins[n] = true } else { delete(m.pins, n) }; return nil }
+func (m *fakeMeta) Tags(n string) []string                  { return m.tags[n] }
+func (m *fakeMeta) SetTags(n string, t []string) error      { m.tags[n] = t; return nil }
+func (m *fakeMeta) SetLastAttached(n string) error          { return nil }
+func (m *fakeMeta) LastAttached(n string) (time.Time, bool) { return time.Time{}, false }
+
+func TestListSessionsInjectsMetadata(t *testing.T) {
+	repo := &fakeRepo{sessions: []domain.Session{{Name: "main"}, {Name: "dev"}}}
+	meta := newFakeMeta()
+	_ = meta.SetPinned("main", true)
+	_ = meta.SetTags("dev", []string{"work"})
+
+	svc := NewSessionService(repo, meta, nil)
+	got, err := svc.ListSessions()
+	if err != nil {
+		t.Fatalf("ListSessions: %v", err)
+	}
+	if !got[0].Pinned || len(got[1].Tags) != 1 || got[1].Tags[0] != "work" {
+		t.Fatalf("metadata not injected: %+v", got)
+	}
+}
+
+func TestEnterSessionSwitchesDirectly(t *testing.T) {
+	repo := &fakeRepo{enterErr: nil}
+	svc := NewSessionService(repo, newFakeMeta(), nil)
+	if err := svc.EnterSession("main"); err != nil {
+		t.Fatalf("EnterSession: %v", err)
+	}
+	if repo.calls[len(repo.calls)-1] != "enter:main" {
+		t.Errorf("expected direct enter, calls=%v", repo.calls)
+	}
+}
+
+func TestEnterSessionSuspendsOnSignal(t *testing.T) {
+	repo := &fakeRepo{enterErr: ports.ErrSuspendRequired}
+	attached := false
+	suspend := func(fn func() error) error {
+		attached = true
+		return fn()
+	}
+	svc := NewSessionService(repo, newFakeMeta(), suspend)
+	if err := svc.EnterSession("main"); err != nil {
+		t.Fatalf("EnterSession: %v", err)
+	}
+	if !attached {
+		t.Fatal("expected suspend to be invoked")
+	}
+	if repo.calls[len(repo.calls)-1] != "attach:main" {
+		t.Errorf("expected AttachInteractive after suspend, calls=%v", repo.calls)
+	}
+}

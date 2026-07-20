@@ -1,0 +1,98 @@
+// Copyright 2026.
+//
+// Licensed under the Apache License, Version 2.0 (the "License");
+// you may not use this file except in compliance with the License.
+// You may obtain a copy of the License at
+//
+//     http://www.apache.org/licenses/LICENSE-2.0
+//
+// Unless required by applicable law or agreed to in writing, software
+// distributed under the License is distributed on an "AS IS" BASIS,
+// WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+// See the License for the specific language governing permissions and
+// limitations under the License.
+
+package services
+
+import (
+	"errors"
+
+	"github.com/maybewaityou/lazytmux/internal/core/domain"
+	"github.com/maybewaityou/lazytmux/internal/core/ports"
+)
+
+type service struct {
+	repo    ports.SessionRepository
+	meta    ports.MetadataStore
+	suspend ports.SuspendFunc
+}
+
+// NewSessionService builds the business-logic service. suspend is wired
+// positionally for tests; main.go uses SetSuspend after constructing the TUI.
+func NewSessionService(repo ports.SessionRepository, meta ports.MetadataStore, suspend ports.SuspendFunc) ports.SessionService {
+	return &service{repo: repo, meta: meta, suspend: suspend}
+}
+
+// SetSuspend wires the TUI's suspend function after construction (breaks the
+// tui<->service cycle: tui needs service to handle keys, service needs tui.Suspend).
+func (s *service) SetSuspend(fn ports.SuspendFunc) { s.suspend = fn }
+
+func (s *service) ListSessions() ([]domain.Session, error) {
+	sessions, err := s.repo.ListSessions()
+	if err != nil {
+		return nil, err
+	}
+	for i := range sessions {
+		sessions[i].Pinned = s.meta.IsPinned(sessions[i].Name)
+		sessions[i].Tags = s.meta.Tags(sessions[i].Name)
+	}
+	return sessions, nil
+}
+
+func (s *service) LoadWindows(sess *domain.Session) error {
+	ws, err := s.repo.ListWindows(sess.Name)
+	if err != nil {
+		return err
+	}
+	sess.Windows = ws
+	return nil
+}
+
+func (s *service) CreateSession(name string) error { return s.repo.CreateSession(name) }
+func (s *service) KillSession(name string) error   { return s.repo.KillSession(name) }
+func (s *service) RenameSession(o, n string) error { return s.repo.RenameSession(o, n) }
+
+func (s *service) TogglePin(name string) error {
+	return s.meta.SetPinned(name, !s.meta.IsPinned(name))
+}
+
+func (s *service) SaveTags(name string, tags []string) error {
+	return s.meta.SetTags(name, tags)
+}
+
+func (s *service) EnterSession(name string) error {
+	err := s.repo.SwitchOrAttach(name)
+	if err == nil {
+		return s.meta.SetLastAttached(name)
+	}
+	if errors.Is(err, ports.ErrSuspendRequired) {
+		if s.suspend == nil {
+			return err
+		}
+		var attachErr error
+		susErr := s.suspend(func() error {
+			attachErr = s.repo.AttachInteractive(name)
+			return attachErr
+		})
+		if susErr != nil {
+			return susErr
+		}
+		if attachErr == nil {
+			_ = s.meta.SetLastAttached(name)
+		}
+		return attachErr
+	}
+	return err
+}
+
+var _ ports.SessionService = (*service)(nil)

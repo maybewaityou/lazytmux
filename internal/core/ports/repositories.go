@@ -27,6 +27,9 @@ type SessionRepository interface {
 	// error ErrSuspendRequired when the TUI must be suspended for an interactive
 	// attach (i.e. not running inside tmux).
 	SwitchOrAttach(name string) error
+	// AttachInteractive runs `tmux attach -t <name>` against the parent's stdio.
+	// Called by the service only after it has suspended the TUI (ErrSuspendRequired path).
+	AttachInteractive(name string) error
 }
 
 // ErrSuspendRequired signals that the caller must suspend the TUI and run an
