@@ -44,4 +44,5 @@ type SessionService interface {
 	EnterSession(name string) error
 	TogglePin(name string) error
 	SaveTags(name string, tags []string) error
+	LastAttached(name string) (time.Time, bool)
 }

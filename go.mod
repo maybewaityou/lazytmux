@@ -3,6 +3,7 @@ module github.com/maybewaityou/lazytmux
 go 1.24.6
 
 require (
+	github.com/atotto/clipboard v0.1.4
 	github.com/gdamore/tcell/v2 v2.13.10
 	github.com/rivo/tview v0.42.0
 	go.uber.org/zap v1.27.0

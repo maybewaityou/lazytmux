@@ -16,6 +16,7 @@ package services
 
 import (
 	"errors"
+	"time"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
 	"github.com/maybewaityou/lazytmux/internal/core/ports"
@@ -33,8 +34,7 @@ func NewSessionService(repo ports.SessionRepository, meta ports.MetadataStore, s
 	return &service{repo: repo, meta: meta, suspend: suspend}
 }
 
-// SetSuspend wires the TUI's suspend function after construction (breaks the
-// tui<->service cycle: tui needs service to handle keys, service needs tui.Suspend).
+// SetSuspend wires the TUI's suspend function after construction.
 func (s *service) SetSuspend(fn ports.SuspendFunc) { s.suspend = fn }
 
 func (s *service) ListSessions() ([]domain.Session, error) {
@@ -68,6 +68,10 @@ func (s *service) TogglePin(name string) error {
 
 func (s *service) SaveTags(name string, tags []string) error {
 	return s.meta.SetTags(name, tags)
+}
+
+func (s *service) LastAttached(name string) (time.Time, bool) {
+	return s.meta.LastAttached(name)
 }
 
 func (s *service) EnterSession(name string) error {
