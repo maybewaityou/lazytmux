@@ -27,9 +27,11 @@ type Session struct {
 	WindowsCount  int       // session_windows
 	Path          string    // session_path
 
-	// Pinned/Tags are UI metadata; injected from the metadata store, not tmux.
-	Pinned bool
-	Tags   []string
+	// Pinned/Tags/LastAttached are UI metadata; injected from the metadata
+	// store, not tmux.
+	Pinned       bool
+	Tags         []string
+	LastAttached time.Time
 
 	// Windows is only filled when details are requested.
 	Windows []Window

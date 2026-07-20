@@ -16,11 +16,12 @@ package ui
 
 import (
 	"strings"
+	"time"
 
 	"github.com/rivo/tview"
 )
 
-// AppHeader is the top bar: brand left, version/commit center, repo right.
+// AppHeader is the top bar: brand left, version/commit center, repo+time right.
 type AppHeader struct {
 	*tview.Flex
 }
@@ -39,7 +40,8 @@ func (h *AppHeader) build(version, commit, repoURL string) {
 	center.SetText(makeTag(version, colorGreen) + "  " + makeTag(shortCommit(commit), colorPurple))
 
 	right := tview.NewTextView().SetDynamicColors(true).SetTextAlign(tview.AlignRight)
-	right.SetText("[" + colorAccent + "::u]🔗 " + repoURL + "[-]")
+	currentTime := time.Now().Format("Mon, 02 Jan 2006 15:04")
+	right.SetText("[" + colorAccent + "]🔗 " + repoURL + "[-]  [" + colorSecondary + "]• " + currentTime + "[-]")
 
 	bar := tview.NewFlex().SetDirection(tview.FlexColumn).
 		AddItem(left, 0, 1, false).

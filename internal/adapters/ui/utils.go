@@ -16,21 +16,61 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
 )
 
-// formatSessionLine renders one list row: 📌(if pinned) ●/○(attached) name [Nw].
+// formatSessionLine renders one list row with fixed-width columns so that the
+// Name and Last Attached columns stay aligned across rows of different length:
+//
+//	📌(if pinned) ⚡/💤(attached)  Name__________  N win___  Last Attached: <rel>.
+//
+// Color tags sit OUTSIDE the %-N width specifiers so fmt pads only the visible
+// text (otherwise the tag bytes would corrupt the column width).
 func formatSessionLine(s domain.Session) string {
-	pin := ""
+	// pin column: fixed 3 cells so pinned/unpinned rows stay aligned.
+	pin := "   "
 	if s.Pinned {
 		pin = "[" + colorGreen + "]📌[-] "
 	}
-	dot := "[" + colorSecondary + "]○[-]"
+	icon := "[" + colorSecondary + "]💤[-]"
 	if s.Attached {
-		dot = "[" + colorGreen + "]●[-]"
+		icon = "[" + colorGreen + "]⚡[-]"
 	}
-	name := "[" + colorPrimary + "::b]" + s.Name + "[-]"
-	wins := fmt.Sprintf("[%s]%d win[-]", colorSecondary, s.WindowsCount)
-	return fmt.Sprintf("%s%s %s  %s", pin, dot, name, wins)
+	name := "[" + colorPrimary + "::b]" + fmt.Sprintf("%-20s", s.Name) + "[-]"
+	wins := "[" + colorSecondary + "]" + fmt.Sprintf("%-8s", fmt.Sprintf("%d win", s.WindowsCount)) + "[-]"
+	attach := "[" + colorDim + "]Last Attached: " + humanizeDuration(s.LastAttached) + "[-]"
+	return fmt.Sprintf("%s%s %s  %s  %s", pin, icon, name, wins, attach)
+}
+
+// humanizeDuration renders a timestamp as a relative, human-readable duration
+// (e.g. "5m ago", "2h ago"). A zero time yields "never".
+func humanizeDuration(t time.Time) string {
+	if t.IsZero() {
+		return "never"
+	}
+	d := time.Since(t)
+	switch {
+	case d < time.Minute:
+		return "just now"
+	case d < time.Hour:
+		return fmt.Sprintf("%dm ago", int(d.Minutes()))
+	case d < 48*time.Hour:
+		return fmt.Sprintf("%dh ago", int(d.Hours()))
+	case d < 60*24*time.Hour:
+		return fmt.Sprintf("%dd ago", int(d.Hours())/24)
+	case d < 365*24*time.Hour:
+		months := int(d.Hours()) / (24 * 30)
+		if months < 1 {
+			months = 1
+		}
+		return fmt.Sprintf("%dmo ago", months)
+	default:
+		years := int(d.Hours()) / (24 * 365)
+		if years < 1 {
+			years = 1
+		}
+		return fmt.Sprintf("%dy ago", years)
+	}
 }

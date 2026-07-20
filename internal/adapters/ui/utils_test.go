@@ -33,18 +33,43 @@ func TestFormatSessionLine(t *testing.T) {
 	if !strings.Contains(line, "📌") {
 		t.Errorf("missing pin marker: %q", line)
 	}
-	if !strings.Contains(line, "●") {
-		t.Errorf("missing attached dot: %q", line)
+	if !strings.Contains(line, "⚡") {
+		t.Errorf("missing attached icon: %q", line)
+	}
+	if strings.Contains(line, "💤") {
+		t.Errorf("should not show unattached icon: %q", line)
+	}
+	if !strings.Contains(line, "Last Attached: never") {
+		t.Errorf("missing last attached time for zero value: %q", line)
 	}
 }
 
 func TestFormatSessionLineUnattached(t *testing.T) {
 	s := domain.Session{Name: "dev", Attached: false, WindowsCount: 1, Pinned: false}
 	line := formatSessionLine(s)
-	if strings.Contains(line, "●") {
-		t.Errorf("should not show attached dot: %q", line)
+	if !strings.Contains(line, "💤") {
+		t.Errorf("missing unattached icon: %q", line)
+	}
+	if strings.Contains(line, "⚡") {
+		t.Errorf("should not show attached icon: %q", line)
 	}
 	if strings.Contains(line, "📌") {
 		t.Errorf("should not show pin marker: %q", line)
+	}
+}
+
+// TestFormatSessionLineAlignment verifies that the Name and Last Attached
+// columns line up across rows of different name lengths: the fixed-width
+// padding must place "Last Attached:" at the same byte offset in every line.
+func TestFormatSessionLineAlignment(t *testing.T) {
+	short := formatSessionLine(domain.Session{Name: "api", WindowsCount: 1})
+	long := formatSessionLine(domain.Session{Name: "a-much-longer-name", WindowsCount: 99})
+	iShort := strings.Index(short, "Last Attached:")
+	iLong := strings.Index(long, "Last Attached:")
+	if iShort < 0 || iLong < 0 {
+		t.Fatalf("missing Last Attached column:\n short=%q\n long=%q", short, long)
+	}
+	if iShort != iLong {
+		t.Errorf("Last Attached column not aligned: short@%d long@%d\n short=%q\n long=%q", iShort, iLong, short, long)
 	}
 }

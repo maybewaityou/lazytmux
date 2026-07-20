@@ -34,13 +34,13 @@ const (
 func (s SortMode) String() string {
 	switch s {
 	case SortByCreatedDesc:
-		return "created"
+		return "Created ↓"
 	case SortByActivityDesc:
-		return "activity"
+		return "Activity ↓"
 	case SortByLastAttachedDesc:
-		return "lastAttached"
+		return "Last Attached ↓"
 	default:
-		return "name"
+		return "Name ↑"
 	}
 }
 

@@ -14,7 +14,10 @@
 
 package ui
 
-import "github.com/rivo/tview"
+import (
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+)
 
 // StatusBar shows the keybinding hint line. SetStatus updates it (e.g. errors).
 type StatusBar struct {
@@ -24,6 +27,8 @@ type StatusBar struct {
 func NewStatusBar() *StatusBar {
 	sb := &StatusBar{TextView: tview.NewTextView()}
 	sb.SetDynamicColors(true)
+	sb.SetTextAlign(tview.AlignCenter)
+	sb.SetBackgroundColor(tcell.ColorDefault)
 	sb.SetText(defaultHints())
 	return sb
 }
@@ -34,18 +39,20 @@ func (s *StatusBar) SetStatus(msg string) { s.SetText(msg) }
 // ResetHints restores the default keybinding hints.
 func (s *StatusBar) ResetHints() { s.SetText(defaultHints()) }
 
+// defaultHints follows the same ordering rule as lazyssh:
+// Navigate → primary action → feature keys → Pin → Search → Quit.
 func defaultHints() string {
-	k := colorPrimary // key color (descriptions use literal #565f89)
-	return "[#565f89]/[-][" + k + "]search[-]  " +
-		"[#565f89]↑↓/jk[-][" + k + "]nav[-]  " +
-		"[" + k + "]Enter[-][#565f89]enter[-]  " +
-		"[" + k + "]a[-][#565f89]new[-]  " +
-		"[" + k + "]e[-][#565f89]rename[-]  " +
-		"[" + k + "]d[-][#565f89]kill[-]  " +
-		"[" + k + "]p[-][#565f89]pin[-]  " +
-		"[" + k + "]t[-][#565f89]tags[-]  " +
-		"[" + k + "]s[-][#565f89]sort[-]  " +
-		"[" + k + "]r[-][#565f89]refresh[-]  " +
-		"[" + k + "]c[-][#565f89]copy[-]  " +
-		"[" + k + "]q[-][#565f89]quit[-]"
+	k := colorCyan // key color (matches lazyssh); descriptions use the default foreground
+	return "[" + k + "]↑↓[-] Navigate  • " +
+		"[" + k + "]Enter[-] Enter  • " +
+		"[" + k + "]c[-] Copy  • " +
+		"[" + k + "]a[-] New  • " +
+		"[" + k + "]e[-] Rename  • " +
+		"[" + k + "]d[-] Kill  • " +
+		"[" + k + "]t[-] Tags  • " +
+		"[" + k + "]s[-] Sort  • " +
+		"[" + k + "]r[-] Refresh  • " +
+		"[" + k + "]p[-] Pin  • " +
+		"[" + k + "]/[-] Search  • " +
+		"[" + k + "]q[-] Quit"
 }

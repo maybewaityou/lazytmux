@@ -39,5 +39,7 @@ const (
 	colorAccent    = "#7aa2f7"
 	colorGreen     = "#9ece6a"
 	colorPurple    = "#bb9af7"
+	colorCyan      = "#7dcfff"
+	colorDim       = "#414868"
 	colorSelected  = "#33467c"
 )

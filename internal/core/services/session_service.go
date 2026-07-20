@@ -45,6 +45,7 @@ func (s *service) ListSessions() ([]domain.Session, error) {
 	for i := range sessions {
 		sessions[i].Pinned = s.meta.IsPinned(sessions[i].Name)
 		sessions[i].Tags = s.meta.Tags(sessions[i].Name)
+		sessions[i].LastAttached, _ = s.meta.LastAttached(sessions[i].Name)
 	}
 	return sessions, nil
 }
