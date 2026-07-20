@@ -99,7 +99,9 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		t.actOnSelected(func(s domain.Session) {
 			if err := t.serve.EnterSession(s.Name); err != nil {
 				t.statusBar.SetStatus("[" + colorRed + "]enter failed: " + err.Error() + "[-]")
+				return
 			}
+			t.app.Stop()
 		})
 		return nil
 	}

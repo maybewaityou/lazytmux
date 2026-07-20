@@ -67,7 +67,7 @@ func (t *tui) Run() error {
 	t.app.EnableMouse(true)
 	t.buildComponents().buildLayout().bindEvents().loadInitialData()
 	t.app.SetRoot(t.root, true)
-	t.app.SetFocus(t.searchBar)
+	t.app.SetFocus(t.sessionList)
 	t.logger.Infow("starting TUI", "version", t.version, "commit", t.commit)
 	if err := t.app.Run(); err != nil {
 		t.logger.Errorw("application run error", "error", err)
