@@ -17,45 +17,76 @@ package ui
 import (
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
 )
 
-func TestFormatSessionLine(t *testing.T) {
-	s := domain.Session{Name: "main", Attached: true, WindowsCount: 3, Pinned: true}
+// The status icon encodes two dimensions in three emoji, with the attached
+// fact checked first so it always wins over the 60s activity heuristic:
+//
+//	⚡ attached          (you are in this session — never kill)
+//	⏳ detached + live  (you left, but a task is still running — don't kill)
+//	💤 detached + idle  (no recent activity — safe to clean up)
+//
+// "live" means session_activity is within activeThreshold of now.
+
+func TestFormatSessionLineAttached(t *testing.T) {
+	s := domain.Session{
+		Name: "main", Attached: true, WindowsCount: 3, Pinned: true,
+		LastActivity: time.Now(),
+	}
 	line := formatSessionLine(s)
-	if !strings.Contains(line, "main") {
-		t.Errorf("missing name: %q", line)
-	}
-	if !strings.Contains(line, "3 win") {
-		t.Errorf("missing windows count: %q", line)
-	}
-	if !strings.Contains(line, "📌") {
-		t.Errorf("missing pin marker: %q", line)
-	}
-	if !strings.Contains(line, "⚡") {
-		t.Errorf("missing attached icon: %q", line)
-	}
-	if strings.Contains(line, "💤") {
-		t.Errorf("should not show unattached icon: %q", line)
-	}
+	assertContains(t, line, "main")
+	assertContains(t, line, "3 win")
+	assertContains(t, line, "📌")
+	assertContains(t, line, "⚡")
+	assertNotContains(t, line, "⏳")
+	assertNotContains(t, line, "💤")
 	if !strings.Contains(line, "Last Attached: never") {
 		t.Errorf("missing last attached time for zero value: %q", line)
 	}
 }
 
-func TestFormatSessionLineUnattached(t *testing.T) {
-	s := domain.Session{Name: "dev", Attached: false, WindowsCount: 1, Pinned: false}
+func TestFormatSessionLineDetachedLive(t *testing.T) {
+	s := domain.Session{Name: "build", Attached: false, WindowsCount: 1, LastActivity: time.Now()}
 	line := formatSessionLine(s)
-	if !strings.Contains(line, "💤") {
-		t.Errorf("missing unattached icon: %q", line)
-	}
-	if strings.Contains(line, "⚡") {
-		t.Errorf("should not show attached icon: %q", line)
-	}
-	if strings.Contains(line, "📌") {
-		t.Errorf("should not show pin marker: %q", line)
-	}
+	assertContains(t, line, "⏳")
+	assertNotContains(t, line, "⚡")
+	assertNotContains(t, line, "💤")
+	assertNotContains(t, line, "📌")
+}
+
+// An attached session shows ⚡ even when idle — the attached fact wins over
+// the activity heuristic, so a session you are watching never reads as 💤.
+func TestFormatSessionLineAttachedStaysActiveWhenIdle(t *testing.T) {
+	stale := time.Now().Add(-10 * time.Minute)
+	s := domain.Session{Name: "reading", Attached: true, WindowsCount: 1, LastActivity: stale}
+	line := formatSessionLine(s)
+	assertContains(t, line, "⚡")
+	assertNotContains(t, line, "⏳")
+	assertNotContains(t, line, "💤")
+}
+
+func TestFormatSessionLineDetachedIdle(t *testing.T) {
+	stale := time.Now().Add(-10 * time.Minute)
+	s := domain.Session{Name: "old", Attached: false, WindowsCount: 1, LastActivity: stale}
+	line := formatSessionLine(s)
+	assertContains(t, line, "💤")
+	assertNotContains(t, line, "⚡")
+	assertNotContains(t, line, "⏳")
+}
+
+// A zero LastActivity (e.g. freshly constructed, never populated) on a
+// detached session is treated as "never active" and therefore idle, mirroring
+// humanizeDuration's "never". An attached session with zero activity still
+// shows ⚡, since the attached fact takes priority.
+func TestFormatSessionLineDetachedZeroActivity(t *testing.T) {
+	s := domain.Session{Name: "blank", Attached: false, WindowsCount: 1}
+	line := formatSessionLine(s)
+	assertContains(t, line, "💤")
+	assertNotContains(t, line, "⚡")
+	assertNotContains(t, line, "⏳")
 }
 
 // TestFormatSessionLineAlignment verifies that the Name and Last Attached
@@ -71,5 +102,19 @@ func TestFormatSessionLineAlignment(t *testing.T) {
 	}
 	if iShort != iLong {
 		t.Errorf("Last Attached column not aligned: short@%d long@%d\n short=%q\n long=%q", iShort, iLong, short, long)
+	}
+}
+
+func assertContains(t *testing.T, s, substr string) {
+	t.Helper()
+	if !strings.Contains(s, substr) {
+		t.Errorf("expected output to contain %q\n got: %q", substr, s)
+	}
+}
+
+func assertNotContains(t *testing.T, s, substr string) {
+	t.Helper()
+	if strings.Contains(s, substr) {
+		t.Errorf("expected output NOT to contain %q\n got: %q", substr, s)
 	}
 }

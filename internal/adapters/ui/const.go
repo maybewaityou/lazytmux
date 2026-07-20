@@ -38,6 +38,7 @@ const (
 	colorSecondary = "#565f89"
 	colorAccent    = "#7aa2f7"
 	colorGreen     = "#9ece6a"
+	colorYellow    = "#e0af68"
 	colorPurple    = "#bb9af7"
 	colorCyan      = "#7dcfff"
 	colorDim       = "#414868"
