@@ -51,10 +51,9 @@ lazytmux does not introduce any new risks. It is simply a TUI wrapper around you
 
 ## 📦 Installation
 
-### Homebrew (macOS / Linux)
+### Option 1: Homebrew (macOS)
 
 ```bash
-brew tap maybewaityou/tap
 brew install maybewaityou/tap/lazytmux
 ```
 
@@ -66,7 +65,32 @@ brew install maybewaityou/tap/lazytmux
 > brew trust maybewaityou/tap
 > ```
 
-### Build from Source
+### Option 2: Download Binary from Releases
+
+Download a prebuilt binary from [GitHub Releases](https://github.com/maybewaityou/lazytmux/releases). The snippet below detects the latest version and fetches the right tarball for your OS/arch (darwin/linux × amd64/arm64):
+
+```bash
+# Detect latest version
+LATEST_TAG=$(curl -fsSL https://api.github.com/repos/maybewaityou/lazytmux/releases/latest | jq -r .tag_name)
+
+# Normalize OS/arch to the release asset name (darwin/linux × amd64/arm64)
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+esac
+
+# Download + extract + install
+curl -LJO "https://github.com/maybewaityou/lazytmux/releases/download/${LATEST_TAG}/lazytmux_${OS}_${ARCH}.tar.gz"
+tar -xzf lazytmux_${OS}_${ARCH}.tar.gz
+sudo mv lazytmux /usr/local/bin/
+
+# enjoy!
+lazytmux
+```
+
+### Option 3: Build from Source
 
 ```bash
 # Clone the repository

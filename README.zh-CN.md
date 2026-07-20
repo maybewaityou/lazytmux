@@ -51,10 +51,9 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 
 ## 📦 安装
 
-### Homebrew(macOS / Linux)
+### Option 1: Homebrew(macOS)
 
 ```bash
-brew tap maybewaityou/tap
 brew install maybewaityou/tap/lazytmux
 ```
 
@@ -66,7 +65,32 @@ lazytmux 会调用系统 `tmux`,Homebrew 会通过 `tmux` 依赖自动帮你装�
 > brew trust maybewaityou/tap
 > ```
 
-### 从源码构建
+### Option 2: 从 Release 下载二进制
+
+从 [GitHub Releases](https://github.com/maybewaityou/lazytmux/releases) 下载预编译二进制。下面这段脚本会自动检测最新版本,并按你的系统拉取对应的 tarball(darwin/linux × amd64/arm64):
+
+```bash
+# 检测最新版本
+LATEST_TAG=$(curl -fsSL https://api.github.com/repos/maybewaityou/lazytmux/releases/latest | jq -r .tag_name)
+
+# 把 OS / 架构归一化成 Release 资源名(darwin/linux × amd64/arm64)
+OS=$(uname -s | tr '[:upper:]' '[:lower:]')
+ARCH=$(uname -m)
+case "$ARCH" in
+  x86_64) ARCH=amd64 ;;
+  aarch64|arm64) ARCH=arm64 ;;
+esac
+
+# 下载 + 解压 + 安装
+curl -LJO "https://github.com/maybewaityou/lazytmux/releases/download/${LATEST_TAG}/lazytmux_${OS}_${ARCH}.tar.gz"
+tar -xzf lazytmux_${OS}_${ARCH}.tar.gz
+sudo mv lazytmux /usr/local/bin/
+
+# 享受!
+lazytmux
+```
+
+### Option 3: 从源码构建
 
 ```bash
 # 克隆仓库
