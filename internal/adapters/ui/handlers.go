@@ -15,15 +15,22 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
+	"time"
 
 	"github.com/atotto/clipboard"
 	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
 )
 
 const colorRed = "#f7768e"
+
+// statusToastTimeout is how long a transient footer message (e.g. "refreshed")
+// stays visible before reverting to the default keybinding hints.
+const statusToastTimeout = 3 * time.Second
 
 func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	// When the search bar is focused, let it handle all keys (typing).
@@ -39,7 +46,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'r':
 		t.refresh()
-		t.statusBar.SetStatus("[" + colorGreen + "]refreshed[-]")
+		t.setStatusTemporary("[" + colorGreen + "]refreshed[-]")
 		return nil
 	case 's':
 		t.sortMode = t.sortMode.Next()
@@ -54,7 +61,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 			if err := t.serve.TogglePin(s.Name); err == nil {
 				t.refresh()
 			} else {
-				t.statusBar.SetStatus("[" + colorRed + "]pin failed[-]")
+				t.setStatusTemporary("[" + colorRed + "]pin failed[-]")
 			}
 		})
 		return nil
@@ -63,7 +70,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 			if err := t.serve.CreateSession(name); err == nil {
 				t.refresh()
 			} else {
-				t.statusBar.SetStatus("[" + colorRed + "]create failed[-]")
+				t.setStatusTemporary("[" + colorRed + "]create failed[-]")
 			}
 		})
 		return nil
@@ -73,24 +80,18 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 				if err := t.serve.RenameSession(s.Name, newName); err == nil {
 					t.refresh()
 				} else {
-					t.statusBar.SetStatus("[" + colorRed + "]rename failed[-]")
+					t.setStatusTemporary("[" + colorRed + "]rename failed[-]")
 				}
 			})
 		})
 		return nil
 	case 'd':
-		t.actOnSelected(func(s domain.Session) {
-			if err := t.serve.KillSession(s.Name); err == nil {
-				t.refresh()
-			} else {
-				t.statusBar.SetStatus("[" + colorRed + "]kill failed[-]")
-			}
-		})
+		t.actOnSelected(t.showKillConfirmModal)
 		return nil
 	case 'c':
 		t.actOnSelected(func(s domain.Session) {
 			_ = clipboard.WriteAll("tmux attach -t " + s.Name)
-			t.statusBar.SetStatus("[" + colorGreen + "]copied: tmux attach -t " + s.Name + "[-]")
+			t.setStatusTemporary("[" + colorGreen + "]copied: tmux attach -t " + s.Name + "[-]")
 		})
 		return nil
 	}
@@ -98,7 +99,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyEnter:
 		t.actOnSelected(func(s domain.Session) {
 			if err := t.serve.EnterSession(s.Name); err != nil {
-				t.statusBar.SetStatus("[" + colorRed + "]enter failed: " + err.Error() + "[-]")
+				t.setStatusTemporary("[" + colorRed + "]enter failed: " + err.Error() + "[-]")
 				return
 			}
 			t.app.Stop()
@@ -181,6 +182,71 @@ func (t *tui) openForm(title, placeholder string, onSubmit func(string)) {
 }
 
 func (t *tui) closeForm() {
+	t.app.SetRoot(t.root, true)
+	t.app.SetFocus(t.sessionList)
+}
+
+// setStatusTemporary shows a transient footer message, then reverts to the
+// default keybinding hints after statusToastTimeout. Any pending toast is
+// cancelled first so rapid presses reuse a single timer instead of stacking.
+// The reset runs via QueueUpdateDraw because time.AfterFunc fires on its own
+// goroutine and tview widgets are not concurrency-safe.
+func (t *tui) setStatusTemporary(msg string) {
+	t.statusBar.SetStatus(msg)
+	if t.statusTimer != nil {
+		t.statusTimer.Stop()
+	}
+	t.statusTimer = time.AfterFunc(statusToastTimeout, func() {
+		t.app.QueueUpdateDraw(t.statusBar.ResetHints)
+	})
+}
+
+// showKillConfirmModal asks the user to confirm before killing a session,
+// mirroring lazyssh's delete-confirm modal. Cancel is the safe default:
+// the focused button and ESC both land on Cancel, so a stray Enter can't
+// destroy a session. Confirm with k/K or by focusing Kill + Enter.
+func (t *tui) showKillConfirmModal(s domain.Session) {
+	msg := fmt.Sprintf("Kill session %s?\n\nThis action cannot be undone.", s.Name)
+	modal := tview.NewModal().
+		SetText(msg).
+		AddButtons([]string{
+			"[" + colorAccent + "]C[-]ancel",
+			"[" + colorRed + "]K[-]ill",
+		}).
+		SetDoneFunc(func(buttonIndex int, _ string) {
+			if buttonIndex == 1 {
+				t.killSession(s)
+			}
+			t.closeModal()
+		})
+	// Letter shortcuts mirror the buttons. ESC falls through to SetDoneFunc
+	// with buttonIndex -1, which matches no branch and therefore cancels.
+	modal.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Rune() {
+		case 'c', 'C':
+			t.closeModal()
+			return nil
+		case 'k', 'K':
+			t.killSession(s)
+			t.closeModal()
+			return nil
+		}
+		return e
+	})
+	t.app.SetRoot(modal, true)
+}
+
+// killSession runs `tmux kill-session` and reports the outcome on the footer.
+func (t *tui) killSession(s domain.Session) {
+	if err := t.serve.KillSession(s.Name); err == nil {
+		t.refresh()
+	} else {
+		t.setStatusTemporary("[" + colorRed + "]kill failed[-]")
+	}
+}
+
+// closeModal restores the main layout after a modal dialog.
+func (t *tui) closeModal() {
 	t.app.SetRoot(t.root, true)
 	t.app.SetFocus(t.sessionList)
 }

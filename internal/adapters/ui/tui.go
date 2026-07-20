@@ -16,6 +16,7 @@ package ui
 
 import (
 	"fmt"
+	"time"
 
 	"github.com/rivo/tview"
 	"go.uber.org/zap"
@@ -47,8 +48,9 @@ type tui struct {
 	root    *tview.Flex
 	content *tview.Flex
 
-	sortMode SortMode
-	allCache []domain.Session
+	sortMode    SortMode
+	allCache    []domain.Session
+	statusTimer *time.Timer
 }
 
 // NewTUI constructs the TUI. Sub-components are built in Run() via the
