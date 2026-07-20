@@ -51,6 +51,15 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 
 ## 📦 安装
 
+### Homebrew(macOS / Linux)
+
+```bash
+brew tap maybewaityou/tap
+brew install lazytmux
+```
+
+lazytmux 会调用系统 `tmux`,Homebrew 会通过 `tmux` 依赖自动帮你装上。
+
 ### 从源码构建
 
 ```bash

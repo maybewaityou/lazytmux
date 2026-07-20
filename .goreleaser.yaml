@@ -24,3 +24,24 @@ checksum:
 
 changelog:
   use: github
+
+# Auto-generate the Homebrew formula and push it to the personal tap repo.
+# Triggered automatically by `goreleaser release` (see .github/workflows/release.yml).
+brews:
+  - name: lazytmux
+    repository:
+      owner: maybewaityou
+      name: homebrew-tap
+      # A cross-repo PAT is required: the default GITHUB_TOKEN cannot write
+      # to another repository. Set HOMEBREW_TAP_GITHUB_TOKEN in CI.
+      token: "{{ .Env.HOMEBREW_TAP_GITHUB_TOKEN }}"
+    homepage: https://github.com/maybewaityou/lazytmux
+    description: "Terminal-based interactive tmux session manager, inspired by lazyssh."
+    license: Apache-2.0
+    directory: Formula
+    # lazytmux shells out to the system tmux binary on startup, so the formula
+    # must declare it as a runtime dependency (also satisfies `brew test`).
+    dependencies:
+      - tmux
+    test: |
+      system "#{bin}/lazytmux", "--help"

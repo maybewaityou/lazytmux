@@ -51,6 +51,15 @@ lazytmux does not introduce any new risks. It is simply a TUI wrapper around you
 
 ## 📦 Installation
 
+### Homebrew (macOS / Linux)
+
+```bash
+brew tap maybewaityou/tap
+brew install lazytmux
+```
+
+`lazytmux` drives your system `tmux`, which Homebrew pulls in automatically via the `tmux` dependency.
+
 ### Build from Source
 
 ```bash
