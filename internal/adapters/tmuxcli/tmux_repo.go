@@ -16,6 +16,7 @@ package tmuxcli
 
 import (
 	"os"
+	"strings"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
 	"github.com/maybewaityou/lazytmux/internal/core/ports"
@@ -40,9 +41,28 @@ func NewRepository(runner CommandRunner) ports.SessionRepository {
 func (r *repository) ListSessions() ([]domain.Session, error) {
 	out, err := r.runner.RunOutput("list-sessions", "-F", sessionsFormat)
 	if err != nil {
+		// tmux has no long-running daemon: its server starts with the first
+		// session and exits with the last, so the "0 sessions" state surfaces
+		// here as a "no server running" failure rather than empty stdout. That
+		// is a normal empty result, not a fault — swallow it so the UI renders
+		// its empty state instead of a red error line.
+		if isNoServerError(err) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return ParseSessions(out)
+}
+
+// isNoServerError reports whether err is tmux reporting that no server is
+// running — i.e. the normal "0 sessions" state. tmux's wording varies across
+// versions and platforms ("no server running on ..." on Linux, "error
+// connecting to ... (No such file or directory)" on macOS), so either is
+// matched. A missing server is semantically equivalent to having no sessions.
+func isNoServerError(err error) bool {
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "no server running") ||
+		strings.Contains(msg, "error connecting to")
 }
 
 func (r *repository) ListWindows(sessionName string) ([]domain.Window, error) {

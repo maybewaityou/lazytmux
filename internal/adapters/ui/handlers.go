@@ -144,6 +144,11 @@ func (t *tui) blurSearchBar() {
 func (t *tui) refresh() {
 	sessions, err := t.serve.ListSessions()
 	if err != nil {
+		// Only genuine faults reach here — the normal "0 sessions" no-server
+		// state is translated to an empty list by the repository. Log the full
+		// error so a real failure is diagnosable even though the footer only
+		// shows a short summary.
+		t.logger.Warnw("list sessions failed", "error", err)
 		t.statusBar.SetStatus("[" + colorRed + "]tmux error: " + err.Error() + "[-]")
 		t.allCache = nil
 		t.sessionList.UpdateSessions(nil)

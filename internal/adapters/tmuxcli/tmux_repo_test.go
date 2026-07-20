@@ -44,9 +44,32 @@ func TestListSessions(t *testing.T) {
 }
 
 func TestListSessionsError(t *testing.T) {
-	repo := NewRepository(&FakeRunner{Err: errors.New("no server")})
+	// A genuine tmux failure (anything other than the "no server" empty-state)
+	// must propagate to the caller.
+	repo := NewRepository(&FakeRunner{Err: errors.New("permission denied")})
 	if _, err := repo.ListSessions(); err == nil {
 		t.Fatal("expected error when tmux fails")
+	}
+}
+
+// TestListSessionsNoServerReturnsEmpty verifies that tmux's "no server running"
+// state — the normal 0-sessions case — is surfaced as an empty list, not an
+// error. Covers both message variants observed across platforms.
+func TestListSessionsNoServerReturnsEmpty(t *testing.T) {
+	msgs := []string{
+		"no server running on /tmp/tmux-1000/default",
+		"error connecting to /tmp/tmux-501/default (No such file or directory)",
+	}
+	for _, msg := range msgs {
+		repo := NewRepository(&FakeRunner{Err: errors.New(msg)})
+		got, err := repo.ListSessions()
+		if err != nil {
+			t.Errorf("no-server should not error, got %v (msg=%q)", err, msg)
+			continue
+		}
+		if len(got) != 0 {
+			t.Errorf("no-server should return empty list, got %d (msg=%q)", len(got), msg)
+		}
 	}
 }
 

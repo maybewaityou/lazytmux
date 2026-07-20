@@ -19,12 +19,15 @@ import (
 	"fmt"
 	"os"
 	"os/exec"
+	"strings"
 )
 
 // CommandRunner abstracts shelling out to tmux so parsing/behaviour can be
 // tested without a real tmux server.
 type CommandRunner interface {
-	// RunOutput runs tmux with args and returns stdout. stderr is discarded.
+	// RunOutput runs tmux with args and returns stdout. On failure the error
+	// carries tmux's stderr text so callers can tell failure modes apart —
+	// notably the "no server running" empty-state from a genuine fault.
 	RunOutput(args ...string) ([]byte, error)
 	// RunInteractive runs tmux attached to the parent's stdio (for attach).
 	RunInteractive(args ...string) error
@@ -39,11 +42,17 @@ type ExecRunner struct{}
 func NewRunner() CommandRunner { return ExecRunner{} }
 
 func (ExecRunner) RunOutput(args ...string) ([]byte, error) {
-	var stdout bytes.Buffer
+	var stdout, stderr bytes.Buffer
 	cmd := exec.Command("tmux", args...)
 	cmd.Stdout = &stdout
-	cmd.Stderr = nil
+	cmd.Stderr = &stderr
 	if err := cmd.Run(); err != nil {
+		// Surface tmux's stderr. Without it every failure collapses to a useless
+		// "exit status 1", and the "no server running" empty-state becomes
+		// indistinguishable from a real error.
+		if msg := strings.TrimSpace(stderr.String()); msg != "" {
+			return nil, fmt.Errorf("tmux %v: %s", args, msg)
+		}
 		return nil, fmt.Errorf("tmux %v: %w", args, err)
 	}
 	return stdout.Bytes(), nil
