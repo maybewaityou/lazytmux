@@ -34,10 +34,22 @@ func (f *fakeRepo) ListSessions() ([]domain.Session, error) {
 	return f.sessions, nil
 }
 func (f *fakeRepo) ListWindows(string) ([]domain.Window, error) { return f.windows, nil }
-func (f *fakeRepo) CreateSession(name string) error             { f.calls = append(f.calls, "create:"+name); return nil }
-func (f *fakeRepo) KillSession(name string) error               { f.calls = append(f.calls, "kill:"+name); return nil }
-func (f *fakeRepo) RenameSession(o, n string) error             { f.calls = append(f.calls, "rename:"+o+"->"+n); return nil }
-func (f *fakeRepo) AttachInteractive(name string) error         { f.calls = append(f.calls, "attach:"+name); return nil }
+func (f *fakeRepo) CreateSession(name string) error {
+	f.calls = append(f.calls, "create:"+name)
+	return nil
+}
+func (f *fakeRepo) KillSession(name string) error {
+	f.calls = append(f.calls, "kill:"+name)
+	return nil
+}
+func (f *fakeRepo) RenameSession(o, n string) error {
+	f.calls = append(f.calls, "rename:"+o+"->"+n)
+	return nil
+}
+func (f *fakeRepo) AttachInteractive(name string) error {
+	f.calls = append(f.calls, "attach:"+name)
+	return nil
+}
 func (f *fakeRepo) SwitchOrAttach(name string) error {
 	f.calls = append(f.calls, "enter:"+name)
 	return f.enterErr
@@ -52,8 +64,15 @@ func newFakeMeta() *fakeMeta {
 	return &fakeMeta{pins: map[string]bool{}, tags: map[string][]string{}}
 }
 
-func (m *fakeMeta) IsPinned(n string) bool                  { return m.pins[n] }
-func (m *fakeMeta) SetPinned(n string, p bool) error        { if p { m.pins[n] = true } else { delete(m.pins, n) }; return nil }
+func (m *fakeMeta) IsPinned(n string) bool { return m.pins[n] }
+func (m *fakeMeta) SetPinned(n string, p bool) error {
+	if p {
+		m.pins[n] = true
+	} else {
+		delete(m.pins, n)
+	}
+	return nil
+}
 func (m *fakeMeta) Tags(n string) []string                  { return m.tags[n] }
 func (m *fakeMeta) SetTags(n string, t []string) error      { m.tags[n] = t; return nil }
 func (m *fakeMeta) SetLastAttached(n string) error          { return nil }
