@@ -9,3 +9,6 @@ coverage.txt
 
 # local tooling scratch
 .superpowers/
+
+# local deploy script (personal, not tracked)
+/scripts/deploy.sh
