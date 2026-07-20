@@ -46,7 +46,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'r':
 		t.refresh()
-		t.setStatusTemporary("[" + colorGreen + "]refreshed[-]")
+		t.setStatusTemporary("[" + colorGreen + "]Refreshed[-]")
 		return nil
 	case 's':
 		t.sortMode = t.sortMode.Next()
