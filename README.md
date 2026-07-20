@@ -4,6 +4,8 @@
 
 A terminal-based, interactive **tmux session manager** — inspired by [lazyssh](https://github.com/Adembc/lazyssh).
 
+**[English](./README.md)** | [简体中文](./README.zh-CN.md)
+
 </div>
 
 ---
