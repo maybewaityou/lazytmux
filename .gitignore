@@ -1,0 +1,11 @@
+# binaries / release artifacts
+/bin/
+/dist/
+
+# test & coverage
+*.test
+*.out
+coverage.txt
+
+# local tooling scratch
+.superpowers/
