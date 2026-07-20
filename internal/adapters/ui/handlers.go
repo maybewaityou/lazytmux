@@ -133,9 +133,10 @@ func (t *tui) handleSelectionChange(s domain.Session) {
 	}(s)
 }
 
+// blurSearchBar returns focus to the session list without clearing the query.
+// Mirrors lazyssh: ESC only blurs the input, so the list (and its cursor)
+// stays intact. Clear the filter by editing the field instead.
 func (t *tui) blurSearchBar() {
-	t.searchBar.SetText("")
-	t.handleSearchInput("")
 	t.app.SetFocus(t.sessionList)
 }
 
