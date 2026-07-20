@@ -38,7 +38,7 @@ func (sb *SearchBar) build() {
 		SetLabelColor(tcell.GetColor(colorAccent)).
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetFieldTextColor(tcell.GetColor(colorPrimary)).
-		SetPlaceholder("fuzzy search sessions…").
+		SetPlaceholder("Search:").
 		SetPlaceholderTextColor(tcell.GetColor(colorSecondary)).
 		SetBorder(true).
 		SetTitle(" Search ").

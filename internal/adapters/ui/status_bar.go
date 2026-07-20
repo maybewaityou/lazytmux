@@ -52,7 +52,7 @@ func defaultHints() string {
 		"[" + k + "]t[-] Tags  • " +
 		"[" + k + "]s[-] Sort  • " +
 		"[" + k + "]r[-] Refresh  • " +
-		"[" + k + "]p[-] Pin  • " +
+		"[" + k + "]p[-] Pin/Unpin  • " +
 		"[" + k + "]/[-] Search  • " +
 		"[" + k + "]q[-] Quit"
 }
