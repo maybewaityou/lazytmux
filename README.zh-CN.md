@@ -146,7 +146,7 @@ make build-all
 
 ## 🏗 架构
 
-采用六边形架构(端口与适配器),与 lazyssh 一致:
+采用六边形架构(端口与适配器):
 
 ```
 cmd/main.go                       → cobra 根命令,装配依赖 + tmux 存在性检查
@@ -192,7 +192,6 @@ scope 可选(例如 `ui`、`cli`、`core`)。
 
 如果你愿意支持开发:
 
-<div align="center">
 <table>
   <tr>
     <td align="center">
@@ -208,9 +207,6 @@ scope 可选(例如 `ui`、`cli`、`core`)。
     </td>
   </tr>
 </table>
-
-
-</div>
 
 ---
 

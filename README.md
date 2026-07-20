@@ -146,7 +146,7 @@ Tip: the status bar at the bottom shows the result of your last action.
 
 ## 🏗 Architecture
 
-Hexagonal (ports & adapters), mirroring lazyssh:
+Hexagonal (ports & adapters):
 
 ```
 cmd/main.go                       → cobra root, wires deps + tmux presence check
@@ -196,7 +196,21 @@ If you'd like to support development:
 
 **WeChat Pay / Alipay**
 
-<img src="./docs/resources/donate-wechat.jpg" alt="WeChat Pay" width="180" />&nbsp;&nbsp;<img src="./docs/resources/donate-alipay.jpg" alt="Alipay" width="180" />
+<table>
+  <tr>
+    <td align="center">
+      <img src="./docs/resources/donate-wechat.jpg" alt="WeChat Pay" width="180" />
+      <br/>
+      <b>WeChat Pay</b>
+    </td>
+    <td width="80"></td>
+    <td align="center">
+      <img src="./docs/resources/donate-alipay.jpg" alt="Alipay" width="180" />
+      <br/>
+      <b>Alipay</b>
+    </td>
+  </tr>
+</table>
 
 ---
 
