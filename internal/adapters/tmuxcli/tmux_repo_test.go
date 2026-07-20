@@ -17,6 +17,8 @@ package tmuxcli
 import (
 	"errors"
 	"testing"
+
+	"github.com/maybewaityou/lazytmux/internal/core/ports"
 )
 
 func TestListSessions(t *testing.T) {
@@ -62,7 +64,71 @@ func TestListWindows(t *testing.T) {
 		t.Fatalf("unexpected windows: %+v", got)
 	}
 	// args = [list-windows, -t, <name>, -F, <fmt>]; name sits at index 2.
-	if got := runner.LastArgs; len(got) < 3 || got[0] != "list-windows" || got[1] != "-t" || got[2] != "main" {
-		t.Errorf("expected [list-windows -t main -F ...], got args %v", got)
+	if gotArgs := runner.LastArgs; len(gotArgs) < 3 || gotArgs[0] != "list-windows" || gotArgs[1] != "-t" || gotArgs[2] != "main" {
+		t.Errorf("expected [list-windows -t main -F ...], got args %v", gotArgs)
 	}
+}
+
+func TestCreateKillRename(t *testing.T) {
+	runner := &FakeRunner{}
+	repo := NewRepository(runner)
+
+	if err := repo.CreateSession("foo"); err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	if !equalArgs(runner.AllCalls[len(runner.AllCalls)-1], "new-session", "-d", "-s", "foo") {
+		t.Errorf("create args: %v", runner.AllCalls)
+	}
+
+	if err := repo.KillSession("foo"); err != nil {
+		t.Fatalf("KillSession: %v", err)
+	}
+	if !equalArgs(runner.AllCalls[len(runner.AllCalls)-1], "kill-session", "-t", "foo") {
+		t.Errorf("kill args: %v", runner.AllCalls)
+	}
+
+	if err := repo.RenameSession("foo", "bar"); err != nil {
+		t.Fatalf("RenameSession: %v", err)
+	}
+	if !equalArgs(runner.AllCalls[len(runner.AllCalls)-1], "rename-session", "-t", "foo", "bar") {
+		t.Errorf("rename args: %v", runner.AllCalls)
+	}
+}
+
+func TestSwitchOrAttachInsideTmux(t *testing.T) {
+	t.Setenv("TMUX", "/tmp/tmux-1000/default,1234,0")
+	runner := &FakeRunner{}
+	repo := NewRepository(runner)
+
+	if err := repo.SwitchOrAttach("main"); err != nil {
+		t.Fatalf("SwitchOrAttach inside tmux: %v", err)
+	}
+	if !equalArgs(runner.LastArgs, "switch-client", "-t", "main") {
+		t.Errorf("switch-client args: %v", runner.LastArgs)
+	}
+}
+
+func TestSwitchOrAttachOutsideTmux(t *testing.T) {
+	t.Setenv("TMUX", "")
+	repo := NewRepository(&FakeRunner{})
+
+	err := repo.SwitchOrAttach("main")
+	if err == nil {
+		t.Fatal("expected ErrSuspendRequired when outside tmux")
+	}
+	if !errors.Is(err, ports.ErrSuspendRequired) {
+		t.Fatalf("expected ErrSuspendRequired, got %v", err)
+	}
+}
+
+func equalArgs(got []string, want ...string) bool {
+	if len(got) != len(want) {
+		return false
+	}
+	for i := range got {
+		if got[i] != want[i] {
+			return false
+		}
+	}
+	return true
 }

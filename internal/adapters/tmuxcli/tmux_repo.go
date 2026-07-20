@@ -15,7 +15,6 @@
 package tmuxcli
 
 import (
-	"errors"
 	"os"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
@@ -54,13 +53,33 @@ func (r *repository) ListWindows(sessionName string) ([]domain.Window, error) {
 	return ParseWindows(out)
 }
 
-// Write methods implemented in Task 5.
-func (r *repository) CreateSession(name string) error { return errNotImplemented }
-func (r *repository) KillSession(name string) error   { return errNotImplemented }
-func (r *repository) RenameSession(_, _ string) error { return errNotImplemented }
-func (r *repository) SwitchOrAttach(_ string) error   { return errNotImplemented }
+func (r *repository) CreateSession(name string) error {
+	_, err := r.runner.RunOutput("new-session", "-d", "-s", name)
+	return err
+}
 
-var errNotImplemented = errors.New("not implemented yet")
+func (r *repository) KillSession(name string) error {
+	_, err := r.runner.RunOutput("kill-session", "-t", name)
+	return err
+}
 
-// ensure os import stays referenced (used by Task 5's env detection).
-var _ = os.Getenv
+func (r *repository) RenameSession(oldName, newName string) error {
+	_, err := r.runner.RunOutput("rename-session", "-t", oldName, newName)
+	return err
+}
+
+// SwitchOrAttach either switches the tmux client (when already inside tmux) or
+// signals the caller to suspend the TUI for an interactive attach.
+func (r *repository) SwitchOrAttach(name string) error {
+	if os.Getenv("TMUX") != "" {
+		_, err := r.runner.RunOutput("switch-client", "-t", name)
+		return err
+	}
+	return ports.ErrSuspendRequired
+}
+
+// AttachInteractive performs the out-of-tmux interactive attach. Called by the
+// service after it suspends the TUI.
+func (r *repository) AttachInteractive(name string) error {
+	return r.runner.RunInteractive("attach", "-t", name)
+}
