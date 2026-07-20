@@ -55,10 +55,16 @@ lazytmux does not introduce any new risks. It is simply a TUI wrapper around you
 
 ```bash
 brew tap maybewaityou/tap
-brew install lazytmux
+brew install maybewaityou/tap/lazytmux
 ```
 
 `lazytmux` drives your system `tmux`, which Homebrew pulls in automatically via the `tmux` dependency.
+
+> **Newer Homebrew (5.1.15+/6.0):** third-party taps are untrusted by default. If install fails with `Refusing to load formula ... from untrusted tap`, trust the tap first (one-time):
+>
+> ```bash
+> brew trust maybewaityou/tap
+> ```
 
 ### Build from Source
 

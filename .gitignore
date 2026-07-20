@@ -12,3 +12,6 @@ coverage.txt
 
 # local deploy script (personal, not tracked)
 /scripts/deploy.sh
+
+# local docs (personal runbook, not tracked)
+/docs/homebrew-release.md

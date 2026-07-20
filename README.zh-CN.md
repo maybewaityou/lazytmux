@@ -55,10 +55,16 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 
 ```bash
 brew tap maybewaityou/tap
-brew install lazytmux
+brew install maybewaityou/tap/lazytmux
 ```
 
 lazytmux 会调用系统 `tmux`,Homebrew 会通过 `tmux` 依赖自动帮你装上。
+
+> **较新版 Homebrew(5.1.15+/6.0):** 第三方 tap 默认不受信任。若安装时报 `Refusing to load formula ... from untrusted tap`,先信任该 tap(只需一次):
+>
+> ```bash
+> brew trust maybewaityou/tap
+> ```
 
 ### 从源码构建
 
