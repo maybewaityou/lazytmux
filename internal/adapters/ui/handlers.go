@@ -152,7 +152,7 @@ func (t *tui) refresh() {
 		t.statusBar.SetStatus("[" + colorRed + "]tmux error: " + err.Error() + "[-]")
 		t.allCache = nil
 		t.sessionList.UpdateSessions(nil)
-		t.details.RenderEmpty("no sessions")
+		t.details.RenderEmpty("No sessions")
 		return
 	}
 	t.allCache = sessions
@@ -173,7 +173,7 @@ func (t *tui) syncDetails() {
 		t.handleSelectionChange(s)
 		return
 	}
-	t.details.RenderEmpty("no sessions")
+	t.details.RenderEmpty("No sessions")
 }
 
 func (t *tui) applySortAndRender() {

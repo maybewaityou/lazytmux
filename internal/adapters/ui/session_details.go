@@ -35,12 +35,18 @@ func NewSessionDetails() *SessionDetails {
 		SetTitle(" Details ").
 		SetTitleColor(tcell.GetColor(colorTitle)).
 		SetBorderColor(tcell.GetColor(colorBorder))
+	// Placeholder states (initial + empty) read better centered; Render flips
+	// back to left alignment for multi-line session content.
+	d.SetTextAlign(tview.AlignCenter)
 	d.SetText("[" + colorSecondary + "]select a session[-]")
 	return d
 }
 
 // Render fills the pane. If s.Windows is populated, lists them (active marked *).
 func (d *SessionDetails) Render(s domain.Session) {
+	// Multi-line content is left-aligned; restore it in case the previous
+	// state was a centered placeholder.
+	d.SetTextAlign(tview.AlignLeft)
 	var b strings.Builder
 	b.WriteString("[" + colorAccent + "::b]" + s.Name + "[-]\n\n")
 	b.WriteString("[" + colorTitle + "::b]Basic Info[-]\n")
@@ -71,9 +77,9 @@ func (d *SessionDetails) Render(s domain.Session) {
 	d.SetText(b.String())
 }
 
-// RenderEmpty replaces the pane with a placeholder when nothing is selected
-// (e.g. the session list is empty after a kill). Mirrors the initial state set
-// in NewSessionDetails.
+// RenderEmpty replaces the pane with a centered placeholder when nothing is
+// selected (e.g. the session list is empty after a kill).
 func (d *SessionDetails) RenderEmpty(msg string) {
+	d.SetTextAlign(tview.AlignCenter)
 	d.SetText("[" + colorSecondary + "]" + msg + "[-]")
 }
