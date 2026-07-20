@@ -184,6 +184,36 @@ scope 可选(例如 `ui`、`cli`、`core`)。
 
 ---
 
+## ⭐ 支持
+
+如果你觉得 lazytmux 好用,欢迎给仓库点个 **star** ⭐️,也欢迎加入 [stargazers](https://github.com/maybewaityou/lazytmux/stargazers)。
+
+### ☕ 赞助
+
+如果你愿意支持开发:
+
+<div align="center">
+<table>
+  <tr>
+    <td align="center">
+      <img src="./docs/resources/donate-wechat.jpg" alt="微信" width="180" />
+      <br/>
+      <b>微信</b>
+    </td>
+    <td width="80"></td>
+    <td align="center">
+      <img src="./docs/resources/donate-alipay.jpg" alt="支付宝" width="180" />
+      <br/>
+      <b>支付宝</b>
+    </td>
+  </tr>
+</table>
+
+
+</div>
+
+---
+
 ## 🙏 致谢
 
 - 基于 [tview](https://github.com/rivo/tview) + [tcell](https://github.com/gdamore/tcell)、[cobra](https://github.com/spf13/cobra) 与 [zap](https://go.uber.org/zap) 构建。

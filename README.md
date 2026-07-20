@@ -184,6 +184,22 @@ Examples:
 
 ---
 
+## ⭐ Support
+
+If you find lazytmux useful, please consider giving the repo a **star** ⭐️ and joining the [stargazers](https://github.com/maybewaityou/lazytmux/stargazers).
+
+### ☕ Sponsor
+
+If you'd like to support development:
+
+<a href="https://www.buymeacoffee.com/maybewaityou" target="_blank"><img src="https://cdn.buymeacoffee.com/buttons/v2/default-yellow.png" alt="Buy Me A Coffee" width="200" /></a>
+
+**WeChat Pay / Alipay**
+
+<img src="./docs/resources/donate-wechat.jpg" alt="WeChat Pay" width="180" />&nbsp;&nbsp;<img src="./docs/resources/donate-alipay.jpg" alt="Alipay" width="180" />
+
+---
+
 ## 🙏 Acknowledgments
 
 - Built with [tview](https://github.com/rivo/tview) + [tcell](https://github.com/gdamore/tcell), [cobra](https://github.com/spf13/cobra), and [zap](https://go.uber.org/zap).
