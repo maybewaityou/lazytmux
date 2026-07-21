@@ -62,7 +62,17 @@ func (s *service) LoadWindows(sess *domain.Session) error {
 func (s *service) CreateSession(name string) error { return s.repo.CreateSession(name) }
 func (s *service) KillSession(name string) error   { return s.repo.KillSession(name) }
 func (s *service) DetachSession(name string) error { return s.repo.DetachSession(name) }
-func (s *service) RenameSession(o, n string) error { return s.repo.RenameSession(o, n) }
+func (s *service) RenameSession(o, n string) error {
+	if err := s.repo.RenameSession(o, n); err != nil {
+		return err
+	}
+	// tmux rename succeeded — migrate UI metadata so pin/tags/lastAttached
+	// follow the session instead of dangling under the old name. Best-effort:
+	// a write failure is ignored to mirror EnterSession's handling of
+	// SetLastAttached (the primary tmux state change already succeeded).
+	_ = s.meta.Rename(o, n)
+	return nil
+}
 
 func (s *service) TogglePin(name string) error {
 	return s.meta.SetPinned(name, !s.meta.IsPinned(name))

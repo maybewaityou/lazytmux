@@ -15,6 +15,7 @@
 package services
 
 import (
+	"errors"
 	"testing"
 	"time"
 
@@ -26,6 +27,7 @@ type fakeRepo struct {
 	sessions  []domain.Session
 	windows   []domain.Window
 	enterErr  error
+	renameErr error
 	calls     []string
 	current   string
 	currentOk bool
@@ -50,7 +52,7 @@ func (f *fakeRepo) DetachSession(name string) error {
 }
 func (f *fakeRepo) RenameSession(o, n string) error {
 	f.calls = append(f.calls, "rename:"+o+"->"+n)
-	return nil
+	return f.renameErr
 }
 func (f *fakeRepo) AttachInteractive(name string) error {
 	f.calls = append(f.calls, "attach:"+name)
@@ -69,6 +71,7 @@ type fakeMeta struct {
 	pins              map[string]bool
 	tags              map[string][]string
 	lastAttachedCalls int
+	renameCalls       [][2]string
 }
 
 func newFakeMeta() *fakeMeta {
@@ -88,7 +91,18 @@ func (m *fakeMeta) Tags(n string) []string                  { return m.tags[n] }
 func (m *fakeMeta) SetTags(n string, t []string) error      { m.tags[n] = t; return nil }
 func (m *fakeMeta) SetLastAttached(n string) error          { m.lastAttachedCalls++; return nil }
 func (m *fakeMeta) LastAttached(n string) (time.Time, bool) { return time.Time{}, false }
-func (m *fakeMeta) Rename(oldName, newName string) error    { return nil }
+func (m *fakeMeta) Rename(oldName, newName string) error {
+	m.renameCalls = append(m.renameCalls, [2]string{oldName, newName})
+	if p, ok := m.pins[oldName]; ok {
+		m.pins[newName] = p
+		delete(m.pins, oldName)
+	}
+	if tg, ok := m.tags[oldName]; ok {
+		m.tags[newName] = tg
+		delete(m.tags, oldName)
+	}
+	return nil
+}
 
 func TestListSessionsInjectsMetadata(t *testing.T) {
 	repo := &fakeRepo{sessions: []domain.Session{{Name: "main"}, {Name: "dev"}}}
@@ -165,5 +179,34 @@ func TestDetachSessionDelegates(t *testing.T) {
 	}
 	if meta.lastAttachedCalls != 0 {
 		t.Errorf("detach must not update LastAttached, got %d call(s)", meta.lastAttachedCalls)
+	}
+}
+
+func TestRenameSessionMigratesMetadata(t *testing.T) {
+	repo := &fakeRepo{}
+	meta := newFakeMeta()
+	svc := NewSessionService(repo, meta, nil)
+
+	if err := svc.RenameSession("foo", "bar"); err != nil {
+		t.Fatalf("RenameSession: %v", err)
+	}
+	if repo.calls[len(repo.calls)-1] != "rename:foo->bar" {
+		t.Errorf("expected repo rename, calls=%v", repo.calls)
+	}
+	if len(meta.renameCalls) != 1 || meta.renameCalls[0] != [2]string{"foo", "bar"} {
+		t.Errorf("expected meta.Rename(foo,bar), calls=%v", meta.renameCalls)
+	}
+}
+
+func TestRenameSessionSkipsMetaOnRepoError(t *testing.T) {
+	repo := &fakeRepo{renameErr: errors.New("boom")}
+	meta := newFakeMeta()
+	svc := NewSessionService(repo, meta, nil)
+
+	if err := svc.RenameSession("foo", "bar"); err == nil {
+		t.Fatal("expected error from repo")
+	}
+	if len(meta.renameCalls) != 0 {
+		t.Errorf("meta.Rename must not be called when repo fails, calls=%v", meta.renameCalls)
 	}
 }
