@@ -55,6 +55,8 @@ Every adapter proves it satisfies its port with a compile-time assertion: `var _
 
 **Version is injected via ldflags.** `main.version` and `main.gitCommit` are set by `-ldflags -X` in both the `makefile` and `.goreleaser.yaml`; they default to `"develop"` / `"unknown"`. The TUI header reads them.
 
+**当前会话经 best-effort 检测。** 列表里 `▶` 与详情面板 `(current)` 标识的是 lazytmux 进程当前所在的 tmux 会话,由 `SessionRepository.CurrentSession()` 经 `tmux display-message -p '#S'` 取得(`$TMUX` 未设时返回 `("", false)`)。它是装饰性增强:任何失败都静默降级为"无标记",不抛错——与 `isNoServerError` 把"无 server"翻译成空列表是同一哲学。
+
 ## Release
 
 Pushing a `v*` tag triggers `.github/workflows/release.yml` → goreleaser builds linux/darwin × amd64/arm64, publishes the GitHub Release, and pushes an auto-generated Homebrew formula to `maybewaityou/homebrew-tap`. The formula step needs `HOMEBREW_TAP_GITHUB_TOKEN` — a PAT with `contents:write` on the tap repo — because the default `GITHUB_TOKEN` cannot write cross-repo. The formula declares a `tmux` runtime dependency (lazytmux shells out to it, and `brew test` runs `lazytmux --help`). Locally, `make build-all` produces snapshot binaries without cutting a release.

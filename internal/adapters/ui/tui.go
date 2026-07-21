@@ -58,6 +58,10 @@ type tui struct {
 	// queueDraw schedules a function on the tview main loop; overridable in tests
 	// so an async render can be driven synchronously.
 	queueDraw func(func())
+	// currentSession is the tmux session the lazytmux process is currently in
+	// (empty = not inside tmux). It is stable after reading once — switching
+	// sessions necessarily exits the TUI.
+	currentSession string
 }
 
 // NewTUI constructs the TUI. Sub-components are built in Run() via the
@@ -135,6 +139,16 @@ func (t *tui) bindEvents() *tui {
 }
 
 func (t *tui) loadInitialData() *tui {
+	// The current session must be injected before the first refresh so the
+	// first paint already carries the ▶ / (current) markers; cursor
+	// positioning must happen after refresh, since UpdateSessions always
+	// resets the cursor to the first item.
+	t.currentSession, _ = t.serve.CurrentSession()
+	t.sessionList.SetCurrent(t.currentSession)
+	t.details.SetCurrent(t.currentSession)
 	t.refresh()
+	if t.currentSession != "" {
+		t.sessionList.SelectByName(t.currentSession)
+	}
 	return t
 }
