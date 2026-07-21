@@ -15,6 +15,7 @@
 package ui
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
@@ -74,5 +75,30 @@ func TestSelectByNameRestoresAfterReload(t *testing.T) {
 	sl.SelectByName("beta")
 	if got := sl.GetCurrentItem(); got != 1 {
 		t.Errorf("cursor after restore = %d, want 1", got)
+	}
+}
+
+// TestSetCurrentMarksRenderedLine verifies that after SetCurrent, UpdateSessions
+// renders only the current session's row with ▶ and leaves other rows unmarked.
+// This proves the component holds the current-session state and flows it into
+// rendering.
+func TestSetCurrentMarksRenderedLine(t *testing.T) {
+	sl := NewSessionList()
+	sl.SetCurrent("beta")
+	sl.UpdateSessions([]domain.Session{
+		{Name: "alpha", WindowsCount: 1},
+		{Name: "beta", WindowsCount: 1},
+		{Name: "gamma", WindowsCount: 1},
+	})
+
+	alpha, _ := sl.GetItemText(0)
+	beta, _ := sl.GetItemText(1)
+	gamma, _ := sl.GetItemText(2)
+
+	if strings.Contains(alpha, "▶") || strings.Contains(gamma, "▶") {
+		t.Errorf("non-current rows must not carry ▶:\n alpha=%q\n gamma=%q", alpha, gamma)
+	}
+	if !strings.Contains(beta, "▶") {
+		t.Errorf("current row must carry ▶, got: %q", beta)
 	}
 }

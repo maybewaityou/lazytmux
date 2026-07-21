@@ -36,7 +36,7 @@ func TestFormatSessionLineAttached(t *testing.T) {
 		Name: "main", Attached: true, WindowsCount: 3, Pinned: true,
 		LastActivity: time.Now(),
 	}
-	line := formatSessionLine(s)
+	line := formatSessionLine(s, "")
 	assertContains(t, line, "main")
 	assertContains(t, line, "3 win")
 	assertContains(t, line, "📌")
@@ -50,7 +50,7 @@ func TestFormatSessionLineAttached(t *testing.T) {
 
 func TestFormatSessionLineDetachedLive(t *testing.T) {
 	s := domain.Session{Name: "build", Attached: false, WindowsCount: 1, LastActivity: time.Now()}
-	line := formatSessionLine(s)
+	line := formatSessionLine(s, "")
 	assertContains(t, line, "⏳")
 	assertNotContains(t, line, "⚡")
 	assertNotContains(t, line, "💤")
@@ -62,7 +62,7 @@ func TestFormatSessionLineDetachedLive(t *testing.T) {
 func TestFormatSessionLineAttachedStaysActiveWhenIdle(t *testing.T) {
 	stale := time.Now().Add(-10 * time.Minute)
 	s := domain.Session{Name: "reading", Attached: true, WindowsCount: 1, LastActivity: stale}
-	line := formatSessionLine(s)
+	line := formatSessionLine(s, "")
 	assertContains(t, line, "⚡")
 	assertNotContains(t, line, "⏳")
 	assertNotContains(t, line, "💤")
@@ -71,7 +71,7 @@ func TestFormatSessionLineAttachedStaysActiveWhenIdle(t *testing.T) {
 func TestFormatSessionLineDetachedIdle(t *testing.T) {
 	stale := time.Now().Add(-10 * time.Minute)
 	s := domain.Session{Name: "old", Attached: false, WindowsCount: 1, LastActivity: stale}
-	line := formatSessionLine(s)
+	line := formatSessionLine(s, "")
 	assertContains(t, line, "💤")
 	assertNotContains(t, line, "⚡")
 	assertNotContains(t, line, "⏳")
@@ -83,7 +83,7 @@ func TestFormatSessionLineDetachedIdle(t *testing.T) {
 // shows ⚡, since the attached fact takes priority.
 func TestFormatSessionLineDetachedZeroActivity(t *testing.T) {
 	s := domain.Session{Name: "blank", Attached: false, WindowsCount: 1}
-	line := formatSessionLine(s)
+	line := formatSessionLine(s, "")
 	assertContains(t, line, "💤")
 	assertNotContains(t, line, "⚡")
 	assertNotContains(t, line, "⏳")
@@ -93,8 +93,8 @@ func TestFormatSessionLineDetachedZeroActivity(t *testing.T) {
 // columns line up across rows of different name lengths: the fixed-width
 // padding must place "Last Attached:" at the same byte offset in every line.
 func TestFormatSessionLineAlignment(t *testing.T) {
-	short := formatSessionLine(domain.Session{Name: "api", WindowsCount: 1})
-	long := formatSessionLine(domain.Session{Name: "a-much-longer-name", WindowsCount: 99})
+	short := formatSessionLine(domain.Session{Name: "api", WindowsCount: 1}, "")
+	long := formatSessionLine(domain.Session{Name: "a-much-longer-name", WindowsCount: 99}, "")
 	iShort := strings.Index(short, "Last Attached:")
 	iLong := strings.Index(long, "Last Attached:")
 	if iShort < 0 || iLong < 0 {
@@ -102,6 +102,21 @@ func TestFormatSessionLineAlignment(t *testing.T) {
 	}
 	if iShort != iLong {
 		t.Errorf("Last Attached column not aligned: short@%d long@%d\n short=%q\n long=%q", iShort, iLong, short, long)
+	}
+}
+
+// TestFormatSessionLineMarksCurrent verifies that the current session line is
+// prefixed with ▶ and that non-current or empty-current lines are not.
+func TestFormatSessionLineMarksCurrent(t *testing.T) {
+	s := domain.Session{Name: "main", WindowsCount: 1, LastActivity: time.Now()}
+	if line := formatSessionLine(s, "main"); !strings.Contains(line, "▶") {
+		t.Errorf("current session line must contain ▶, got: %q", line)
+	}
+	if line := formatSessionLine(s, "other"); strings.Contains(line, "▶") {
+		t.Errorf("non-current line must not contain ▶, got: %q", line)
+	}
+	if line := formatSessionLine(s, ""); strings.Contains(line, "▶") {
+		t.Errorf("empty-current line must not contain ▶, got: %q", line)
 	}
 }
 

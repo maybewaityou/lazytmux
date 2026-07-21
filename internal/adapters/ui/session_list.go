@@ -25,6 +25,7 @@ import (
 type SessionList struct {
 	*tview.List
 	sessions          []domain.Session
+	current           string
 	onSelectionChange func(domain.Session)
 	onReturnToSearch  func()
 }
@@ -69,7 +70,7 @@ func (sl *SessionList) UpdateSessions(sessions []domain.Session) {
 	sl.sessions = sessions
 	sl.List.Clear()
 	for i := range sessions {
-		sl.List.AddItem(formatSessionLine(sessions[i]), "", 0, nil)
+		sl.List.AddItem(formatSessionLine(sessions[i], sl.current), "", 0, nil)
 	}
 	if sl.List.GetItemCount() > 0 {
 		sl.List.SetCurrentItem(0)
@@ -107,6 +108,11 @@ func (sl *SessionList) OnReturnToSearch(fn func()) *SessionList {
 	sl.onReturnToSearch = fn
 	return sl
 }
+
+// SetCurrent records the name of the tmux session the user is currently inside
+// (empty string = not inside tmux). The next UpdateSessions/refresh renders a
+// ▶ marker at the start of the matching row. Call once before the first render.
+func (sl *SessionList) SetCurrent(name string) *SessionList { sl.current = name; return sl }
 
 // SetSortTitle surfaces the current sort mode in the list border title.
 func (sl *SessionList) SetSortTitle(mode string) {
