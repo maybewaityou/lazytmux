@@ -84,6 +84,20 @@ func (sl *SessionList) GetSelected() (domain.Session, bool) {
 	return domain.Session{}, false
 }
 
+// SelectByName moves the cursor to the first session with the given name, if
+// any. UpdateSessions always resets the cursor to the first item, so after a
+// refresh we call this to keep the user's current selection rather than snapping
+// back to the top of the list. If the name is gone — e.g. the session was killed
+// out-of-band — the cursor is left wherever UpdateSessions last placed it.
+func (sl *SessionList) SelectByName(name string) {
+	for i, s := range sl.sessions {
+		if s.Name == name {
+			sl.List.SetCurrentItem(i)
+			return
+		}
+	}
+}
+
 func (sl *SessionList) OnSelectionChange(fn func(domain.Session)) *SessionList {
 	sl.onSelectionChange = fn
 	return sl

@@ -45,8 +45,8 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		t.app.Stop()
 		return nil
 	case 'r':
-		t.refresh()
-		t.setStatusTemporary("[" + colorGreen + "]Refreshed[-]")
+		count := t.refresh()
+		t.setStatusTemporary(refreshStatusMessage(count))
 		return nil
 	case 's':
 		t.sortMode = t.sortMode.Next()
@@ -141,7 +141,14 @@ func (t *tui) blurSearchBar() {
 	t.app.SetFocus(t.sessionList)
 }
 
-func (t *tui) refresh() {
+// refresh reloads sessions from tmux, re-renders the list, and returns the
+// session count so callers (the 'r' key) can surface it in the footer toast.
+//
+// The current selection is preserved by name across the reload: UpdateSessions
+// always resets the cursor to the first item, so without this a refresh would
+// snap the user back to the top of the list. If the selected session is gone,
+// the cursor stays on the first item.
+func (t *tui) refresh() int {
 	sessions, err := t.serve.ListSessions()
 	if err != nil {
 		// Only genuine faults reach here — the normal "0 sessions" no-server
@@ -153,12 +160,20 @@ func (t *tui) refresh() {
 		t.allCache = nil
 		t.sessionList.UpdateSessions(nil)
 		t.details.RenderEmpty("No sessions")
-		return
+		return 0
+	}
+	prevName := ""
+	if s, ok := t.sessionList.GetSelected(); ok {
+		prevName = s.Name
 	}
 	t.allCache = sessions
 	t.applySortAndRender()
+	if prevName != "" {
+		t.sessionList.SelectByName(prevName)
+	}
 	t.syncDetails()
 	t.refreshStatusBarHints()
+	return len(sessions)
 }
 
 // syncDetails mirrors the details pane to the list's current selection.
@@ -207,6 +222,17 @@ func (t *tui) openForm(title, placeholder string, onSubmit func(string)) {
 func (t *tui) closeForm() {
 	t.app.SetRoot(t.root, true)
 	t.app.SetFocus(t.sessionList)
+}
+
+// refreshStatusMessage builds the transient footer toast shown after pressing
+// 'r'. A non-empty list reports how many sessions were refreshed; an empty list
+// (no tmux server running / every session gone) gets a clearer line instead of
+// the awkward "Refreshed 0 sessions".
+func refreshStatusMessage(count int) string {
+	if count == 0 {
+		return "[" + colorCyan + "]No sessions to refresh[-]"
+	}
+	return fmt.Sprintf("["+colorGreen+"]Refreshed %d sessions[-]", count)
 }
 
 // setStatusTemporary shows a transient footer message, then reverts to the
