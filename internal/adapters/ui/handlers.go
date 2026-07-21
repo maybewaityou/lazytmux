@@ -28,7 +28,7 @@ import (
 
 const colorRed = "#f7768e"
 
-// statusToastTimeout is how long a transient footer message (e.g. "refreshed")
+// statusToastTimeout is how long a transient footer message (e.g. "Refreshed")
 // stays visible before reverting to the default keybinding hints.
 const statusToastTimeout = 3 * time.Second
 
@@ -61,7 +61,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 			if err := t.serve.TogglePin(s.Name); err == nil {
 				t.refresh()
 			} else {
-				t.setStatusTemporary("[" + colorRed + "]pin failed[-]")
+				t.setStatusTemporary("[" + colorRed + "]Pin failed[-]")
 			}
 		})
 		return nil
@@ -70,7 +70,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 			if err := t.serve.CreateSession(name); err == nil {
 				t.refresh()
 			} else {
-				t.setStatusTemporary("[" + colorRed + "]create failed[-]")
+				t.setStatusTemporary("[" + colorRed + "]Create failed[-]")
 			}
 		})
 		return nil
@@ -80,7 +80,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 				if err := t.serve.RenameSession(s.Name, newName); err == nil {
 					t.refresh()
 				} else {
-					t.setStatusTemporary("[" + colorRed + "]rename failed[-]")
+					t.setStatusTemporary("[" + colorRed + "]Rename failed[-]")
 				}
 			})
 		})
@@ -94,7 +94,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	case 'c':
 		t.actOnSelected(func(s domain.Session) {
 			_ = clipboard.WriteAll("tmux attach -t " + s.Name)
-			t.setStatusTemporary("[" + colorGreen + "]copied: tmux attach -t " + s.Name + "[-]")
+			t.setStatusTemporary("[" + colorGreen + "]Copied: tmux attach -t " + s.Name + "[-]")
 		})
 		return nil
 	case 't':
@@ -103,7 +103,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 				if err := t.serve.SaveTags(s.Name, strings.Fields(input)); err == nil {
 					t.refresh()
 				} else {
-					t.setStatusTemporary("[" + colorRed + "]tags failed[-]")
+					t.setStatusTemporary("[" + colorRed + "]Tags failed[-]")
 				}
 			})
 		})
@@ -113,7 +113,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	case tcell.KeyEnter:
 		t.actOnSelected(func(s domain.Session) {
 			if err := t.serve.EnterSession(s.Name); err != nil {
-				t.setStatusTemporary("[" + colorRed + "]enter failed: " + err.Error() + "[-]")
+				t.setStatusTemporary("[" + colorRed + "]Enter failed: " + err.Error() + "[-]")
 				return
 			}
 			t.app.Stop()
@@ -281,7 +281,7 @@ func (t *tui) setStatusTemporary(msg string) {
 }
 
 // refreshStatusBarHints restores the footer line appropriate for the current
-// list state. After a transient toast ("Refreshed", "copied: ...") the timer
+// list state. After a transient toast ("Refreshed", "Copied: ...") the timer
 // fires on its own goroutine, so we route through QueueUpdateDraw and pick the
 // empty-state or full hint set based on whether any session is loaded.
 func (t *tui) refreshStatusBarHints() {
@@ -332,7 +332,7 @@ func (t *tui) killSession(s domain.Session) {
 	if err := t.serve.KillSession(s.Name); err == nil {
 		t.refresh()
 	} else {
-		t.setStatusTemporary("[" + colorRed + "]kill failed[-]")
+		t.setStatusTemporary("[" + colorRed + "]Kill failed[-]")
 	}
 }
 
@@ -385,8 +385,8 @@ func (t *tui) showDetachConfirmModal(s domain.Session) {
 func (t *tui) detachSession(s domain.Session) {
 	if err := t.serve.DetachSession(s.Name); err == nil {
 		t.refresh()
-		t.setStatusTemporary("[" + colorGreen + "]detached: " + s.Name + "[-]")
+		t.setStatusTemporary("[" + colorGreen + "]Detached: " + s.Name + "[-]")
 	} else {
-		t.setStatusTemporary("[" + colorRed + "]detach failed[-]")
+		t.setStatusTemporary("[" + colorRed + "]Detach failed[-]")
 	}
 }
