@@ -99,8 +99,8 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 't':
 		t.actOnSelected(func(s domain.Session) {
-			t.openForm("Tags", "space-separated tags", strings.Join(s.Tags, " "), true, func(input string) {
-				tags := strings.Fields(input)
+			t.openForm("Tags", "comma-separated tags", strings.Join(s.Tags, ", "), true, func(input string) {
+				tags := parseTags(input)
 				if len(tags) == 0 {
 					t.showClearTagsConfirmModal(s)
 					return
@@ -453,4 +453,22 @@ func (t *tui) clearTags(s domain.Session) {
 // refreshStatusMessage.
 func clearedTagsMessage(name string) string {
 	return "[" + colorGreen + "]Cleared tags: " + name + "[-]"
+}
+
+// parseTags splits a tag input string on commas — accepting both the ASCII ","
+// and the fullwidth Chinese "，" — trims surrounding whitespace from each token,
+// and drops empty tokens. Unlike strings.Fields, spaces are NOT separators: a
+// tag may itself contain spaces (e.g. "release v2"). Extracted as a pure
+// function so the parsing can be unit-tested like clearedTagsMessage.
+func parseTags(input string) []string {
+	raw := strings.FieldsFunc(input, func(r rune) bool {
+		return r == ',' || r == '，'
+	})
+	tags := make([]string, 0, len(raw))
+	for _, tag := range raw {
+		if tag = strings.TrimSpace(tag); tag != "" {
+			tags = append(tags, tag)
+		}
+	}
+	return tags
 }

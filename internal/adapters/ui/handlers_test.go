@@ -111,3 +111,46 @@ func TestClearedTagsMessage(t *testing.T) {
 		t.Errorf("clearedTagsMessage should use colorGreen, got %q", got)
 	}
 }
+
+// TestParseTags verifies the tag input is split on commas — ASCII "," and the
+// fullwidth Chinese "，" alike — while spaces are preserved inside a tag and
+// empty tokens are dropped. The "space inside a tag is kept" case is the point
+// of the comma-separator change: it is why "release v2" survives as one tag.
+func TestParseTags(t *testing.T) {
+	for _, tc := range []struct {
+		name  string
+		input string
+		want  []string
+	}{
+		{"ascii comma", "work,personal,urgent", []string{"work", "personal", "urgent"}},
+		{"chinese fullwidth comma", "工作，生活，紧急", []string{"工作", "生活", "紧急"}},
+		{"mixed comma styles", "work，personal,紧急", []string{"work", "personal", "紧急"}},
+		{"comma plus surrounding spaces", "a, b , c", []string{"a", "b", "c"}},
+		{"space inside a tag is kept", "release v2, bug", []string{"release v2", "bug"}},
+		{"empty input", "   ", nil},
+		{"only separators", ",，,", nil},
+		{"blank tokens dropped", "a,,b", []string{"a", "b"}},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			got := parseTags(tc.input)
+			if !equalTags(got, tc.want) {
+				t.Errorf("parseTags(%q) = %v, want %v", tc.input, got, tc.want)
+			}
+		})
+	}
+}
+
+// equalTags compares two string slices by length and contents, treating a nil
+// slice and an empty slice as equal (parseTags returns a non-nil empty slice,
+// while the test table uses nil for clarity).
+func equalTags(a, b []string) bool {
+	if len(a) != len(b) {
+		return false
+	}
+	for i := range a {
+		if a[i] != b[i] {
+			return false
+		}
+	}
+	return true
+}
