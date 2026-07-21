@@ -58,8 +58,9 @@ func NewSessionForm(title, placeholder string) *SessionForm {
 func (f *SessionForm) OnSubmit(fn func(string)) *SessionForm { f.onSubmit = fn; return f }
 func (f *SessionForm) OnCancel(fn func()) *SessionForm       { f.onCancel = fn; return f }
 
-// InitialValue 预填输入框文本(重命名时显示原名)。空串为 no-op,这样
-// 新建会话流程可以无副作用地传 ""。tview SetText 把光标置于文本末尾。
+// InitialValue prefills the input field (used by Rename to show the current name).
+// An empty value is a no-op so the New-session flow can pass "" with no effect.
+// tview's SetText leaves the cursor at the end of the text.
 func (f *SessionForm) InitialValue(v string) *SessionForm {
 	if v != "" {
 		f.input.SetText(v)

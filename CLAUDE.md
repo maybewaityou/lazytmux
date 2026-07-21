@@ -55,7 +55,7 @@ Every adapter proves it satisfies its port with a compile-time assertion: `var _
 
 **Version is injected via ldflags.** `main.version` and `main.gitCommit` are set by `-ldflags -X` in both the `makefile` and `.goreleaser.yaml`; they default to `"develop"` / `"unknown"`. The TUI header reads them.
 
-**当前会话经 best-effort 检测。** 列表里 `▶` 与详情面板 `(current)` 标识的是 lazytmux 进程当前所在的 tmux 会话,由 `SessionRepository.CurrentSession()` 经 `tmux display-message -p '#S'` 取得(`$TMUX` 未设时返回 `("", false)`)。它是装饰性增强:任何失败都静默降级为"无标记",不抛错——与 `isNoServerError` 把"无 server"翻译成空列表是同一哲学。
+**Current-session detection is best-effort.** The `▶` in the list and the `(current)` suffix in the details pane mark the tmux session the lazytmux process is currently running inside, resolved by `SessionRepository.CurrentSession()` via `tmux display-message -p '#S'` (returns `("", false)` when `$TMUX` is unset). It is a decorative enhancement: any failure degrades silently to "no marker" rather than surfacing an error — the same philosophy as `isNoServerError` translating "no server" into an empty list.
 
 ## Release
 

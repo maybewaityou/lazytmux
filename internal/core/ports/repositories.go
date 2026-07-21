@@ -30,8 +30,9 @@ type SessionRepository interface {
 	// AttachInteractive runs `tmux attach -t <name>` against the parent's stdio.
 	// Called by the service only after it has suspended the TUI (ErrSuspendRequired path).
 	AttachInteractive(name string) error
-	// CurrentSession 返回 lazytmux 进程当前所在的 tmux 会话名。ok=false 表示
-	// 不在 tmux 内(或无法确定),此时 UI 不显示"当前会话"标记。
+	// CurrentSession returns the tmux session the lazytmux process is attached to.
+	// ok is false when the process is not inside tmux (or detection failed); the UI
+	// then omits the "current session" markers.
 	CurrentSession() (name string, ok bool)
 }
 
