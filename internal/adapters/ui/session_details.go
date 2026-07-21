@@ -27,6 +27,7 @@ import (
 // SessionDetails is the right-hand pane showing session metadata + windows.
 type SessionDetails struct {
 	*tview.TextView
+	current string
 }
 
 func NewSessionDetails() *SessionDetails {
@@ -42,13 +43,21 @@ func NewSessionDetails() *SessionDetails {
 	return d
 }
 
+// SetCurrent records the tmux session the user is currently attached to. When
+// Render is called for that session, its name is suffixed with (current).
+func (d *SessionDetails) SetCurrent(name string) *SessionDetails { d.current = name; return d }
+
 // Render fills the pane. If s.Windows is populated, lists them (active marked *).
 func (d *SessionDetails) Render(s domain.Session) {
 	// Multi-line content is left-aligned; restore it in case the previous
 	// state was a centered placeholder.
 	d.SetTextAlign(tview.AlignLeft)
 	var b strings.Builder
-	b.WriteString("[" + colorAccent + "::b]" + s.Name + "[-]\n\n")
+	name := s.Name
+	if d.current != "" && s.Name == d.current {
+		name = s.Name + " [" + colorGreen + "](current)[-]"
+	}
+	b.WriteString("[" + colorAccent + "::b]" + name + "[-]\n\n")
 	b.WriteString("[" + colorTitle + "::b]Basic Info[-]\n")
 	b.WriteString(fmt.Sprintf("  [%s]created:   [%s]%s[-]\n", colorSecondary, colorPrimary, s.Created.Format("2006-01-02 15:04")))
 	b.WriteString(fmt.Sprintf("  [%s]activity:  [%s]%s[-]\n", colorSecondary, colorPrimary, s.LastActivity.Format("2006-01-02 15:04")))
