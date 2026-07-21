@@ -23,10 +23,12 @@ import (
 )
 
 type fakeRepo struct {
-	sessions []domain.Session
-	windows  []domain.Window
-	enterErr error
-	calls    []string
+	sessions  []domain.Session
+	windows   []domain.Window
+	enterErr  error
+	calls     []string
+	current   string
+	currentOk bool
 }
 
 func (f *fakeRepo) ListSessions() ([]domain.Session, error) {
@@ -53,6 +55,10 @@ func (f *fakeRepo) AttachInteractive(name string) error {
 func (f *fakeRepo) SwitchOrAttach(name string) error {
 	f.calls = append(f.calls, "enter:"+name)
 	return f.enterErr
+}
+func (f *fakeRepo) CurrentSession() (string, bool) {
+	f.calls = append(f.calls, "current")
+	return f.current, f.currentOk
 }
 
 type fakeMeta struct {
@@ -121,5 +127,18 @@ func TestEnterSessionSuspendsOnSignal(t *testing.T) {
 	}
 	if repo.calls[len(repo.calls)-1] != "attach:main" {
 		t.Errorf("expected AttachInteractive after suspend, calls=%v", repo.calls)
+	}
+}
+
+func TestCurrentSessionDelegates(t *testing.T) {
+	repo := &fakeRepo{current: "work", currentOk: true}
+	svc := NewSessionService(repo, newFakeMeta(), nil)
+
+	name, ok := svc.CurrentSession()
+	if !ok || name != "work" {
+		t.Fatalf("CurrentSession = (%q, %v), want (work, true)", name, ok)
+	}
+	if repo.calls[len(repo.calls)-1] != "current" {
+		t.Errorf("expected repo.CurrentSession to be called, calls=%v", repo.calls)
 	}
 }

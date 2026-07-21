@@ -103,3 +103,18 @@ func (r *repository) SwitchOrAttach(name string) error {
 func (r *repository) AttachInteractive(name string) error {
 	return r.runner.RunInteractive("attach", "-t", name)
 }
+
+// CurrentSession 解析 lazytmux 进程所附着的 tmux 会话,经
+// `tmux display-message -p '#S'` 取得。不在 tmux 内($TMUX 未设)则无此类会话。
+// 该查询是 best-effort:任何 tmux 失败都降级为 ("", false),让装饰性功能绝不
+// 干扰列表渲染。
+func (r *repository) CurrentSession() (string, bool) {
+	if os.Getenv("TMUX") == "" {
+		return "", false
+	}
+	out, err := r.runner.RunOutput("display-message", "-p", "#S")
+	if err != nil {
+		return "", false
+	}
+	return strings.TrimSpace(string(out)), true
+}

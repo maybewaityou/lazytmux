@@ -45,4 +45,5 @@ type SessionService interface {
 	TogglePin(name string) error
 	SaveTags(name string, tags []string) error
 	LastAttached(name string) (time.Time, bool)
+	CurrentSession() (name string, ok bool)
 }

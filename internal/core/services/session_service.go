@@ -75,6 +75,8 @@ func (s *service) LastAttached(name string) (time.Time, bool) {
 	return s.meta.LastAttached(name)
 }
 
+func (s *service) CurrentSession() (string, bool) { return s.repo.CurrentSession() }
+
 func (s *service) EnterSession(name string) error {
 	err := s.repo.SwitchOrAttach(name)
 	if err == nil {

@@ -155,3 +155,41 @@ func equalArgs(got []string, want ...string) bool {
 	}
 	return true
 }
+
+func TestCurrentSessionOutsideTmux(t *testing.T) {
+	t.Setenv("TMUX", "")
+	runner := &FakeRunner{Output: []byte("work\n")}
+	repo := NewRepository(runner)
+
+	name, ok := repo.CurrentSession()
+	if ok || name != "" {
+		t.Fatalf("outside tmux: got (%q, %v), want (\"\", false)", name, ok)
+	}
+	if len(runner.AllCalls) != 0 {
+		t.Errorf("outside tmux must not invoke tmux, calls=%v", runner.AllCalls)
+	}
+}
+
+func TestCurrentSessionInsideTmux(t *testing.T) {
+	t.Setenv("TMUX", "/tmp/tmux-1000/default,1234,0")
+	runner := &FakeRunner{Output: []byte("work\n")}
+	repo := NewRepository(runner)
+
+	name, ok := repo.CurrentSession()
+	if !ok || name != "work" {
+		t.Fatalf("inside tmux: got (%q, %v), want (work, true)", name, ok)
+	}
+	if !equalArgs(runner.LastArgs, "display-message", "-p", "#S") {
+		t.Errorf("args: got %v, want [display-message -p #S]", runner.LastArgs)
+	}
+}
+
+func TestCurrentSessionTmuxFailureDegrades(t *testing.T) {
+	t.Setenv("TMUX", "/tmp/tmux-1000/default,1234,0")
+	repo := NewRepository(&FakeRunner{Err: errors.New("display boom")})
+
+	name, ok := repo.CurrentSession()
+	if ok || name != "" {
+		t.Fatalf("on tmux failure: got (%q, %v), want (\"\", false)", name, ok)
+	}
+}
