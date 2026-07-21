@@ -99,3 +99,15 @@ func TestLoadWindowsAndRenderGuardsStale(t *testing.T) {
 		t.Errorf("details should still show beta after the stale render, got: %q", got)
 	}
 }
+
+// TestClearedTagsMessage verifies the post-clear footer toast names the
+// session and uses the green status color, mirroring detach's success toast.
+func TestClearedTagsMessage(t *testing.T) {
+	got := clearedTagsMessage("work")
+	if !strings.Contains(got, "Cleared tags: work") {
+		t.Errorf("clearedTagsMessage(%q) = %q, want it to name the session", "work", got)
+	}
+	if !strings.Contains(got, colorGreen) {
+		t.Errorf("clearedTagsMessage should use colorGreen, got %q", got)
+	}
+}

@@ -66,7 +66,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		})
 		return nil
 	case 'a':
-		t.openForm("New session", "session name", "", func(name string) {
+		t.openForm("New session", "session name", "", false, func(name string) {
 			if err := t.serve.CreateSession(name); err == nil {
 				t.refresh()
 			} else {
@@ -76,7 +76,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'e':
 		t.actOnSelected(func(s domain.Session) {
-			t.openForm("Rename", "new name", s.Name, func(newName string) {
+			t.openForm("Rename", "new name", s.Name, false, func(newName string) {
 				if err := t.serve.RenameSession(s.Name, newName); err == nil {
 					t.refresh()
 				} else {
@@ -99,8 +99,13 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 't':
 		t.actOnSelected(func(s domain.Session) {
-			t.openForm("Tags", "space-separated tags", strings.Join(s.Tags, " "), func(input string) {
-				if err := t.serve.SaveTags(s.Name, strings.Fields(input)); err == nil {
+			t.openForm("Tags", "space-separated tags", strings.Join(s.Tags, " "), true, func(input string) {
+				tags := strings.Fields(input)
+				if len(tags) == 0 {
+					t.showClearTagsConfirmModal(s)
+					return
+				}
+				if err := t.serve.SaveTags(s.Name, tags); err == nil {
 					t.refresh()
 				} else {
 					t.setStatusTemporary("[" + colorRed + "]Tags failed[-]")
@@ -234,13 +239,20 @@ func (t *tui) actOnSelected(fn func(domain.Session)) {
 	fn(s)
 }
 
-func (t *tui) openForm(title, placeholder, initialValue string, onSubmit func(string)) {
+func (t *tui) openForm(title, placeholder, initialValue string, allowEmpty bool, onSubmit func(string)) {
 	form := NewSessionForm(title, placeholder).
 		InitialValue(initialValue).
 		OnSubmit(func(name string) {
 			name = strings.TrimSpace(name)
-			if name != "" {
-				onSubmit(name)
+			if name == "" && !allowEmpty {
+				t.closeForm()
+				return
+			}
+			onSubmit(name)
+			if name == "" {
+				// Empty + allowEmpty: onSubmit took over the root (opened a
+				// confirm modal). Don't closeForm, or it would clobber the modal.
+				return
 			}
 			t.closeForm()
 		}).
@@ -389,4 +401,56 @@ func (t *tui) detachSession(s domain.Session) {
 	} else {
 		t.setStatusTemporary("[" + colorRed + "]Detach failed[-]")
 	}
+}
+
+// showClearTagsConfirmModal asks the user to confirm before clearing all tags,
+// mirroring kill/detach's confirm pattern. Cancel is the safe default. Confirm
+// with t/T — the tag trigger key doubles as the confirm key, same pattern as k
+// for kill and d for detach — or by focusing Clear tags + Enter. ESC falls
+// through to SetDoneFunc with buttonIndex -1, which matches no branch and so
+// cancels.
+func (t *tui) showClearTagsConfirmModal(s domain.Session) {
+	msg := fmt.Sprintf("Clear all tags for session %s?\n\nThe session itself is unaffected; only its tags are removed.", s.Name)
+	modal := tview.NewModal().
+		SetText(msg).
+		AddButtons([]string{
+			"[" + colorAccent + "]C[-]ancel",
+			"[" + colorRed + "]Clear tags",
+		}).
+		SetDoneFunc(func(buttonIndex int, _ string) {
+			if buttonIndex == 1 {
+				t.clearTags(s)
+			}
+			t.closeModal()
+		})
+	modal.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Rune() {
+		case 'c', 'C':
+			t.closeModal()
+			return nil
+		case 't', 'T':
+			t.clearTags(s)
+			t.closeModal()
+			return nil
+		}
+		return e
+	})
+	t.app.SetRoot(modal, true)
+}
+
+// clearTags removes every tag for s and reports the outcome on the footer.
+func (t *tui) clearTags(s domain.Session) {
+	if err := t.serve.SaveTags(s.Name, nil); err == nil {
+		t.refresh()
+		t.setStatusTemporary(clearedTagsMessage(s.Name))
+	} else {
+		t.setStatusTemporary("[" + colorRed + "]Tags failed[-]")
+	}
+}
+
+// clearedTagsMessage builds the transient footer toast shown after clearing a
+// session's tags. Extracted as a pure function so it can be unit-tested like
+// refreshStatusMessage.
+func clearedTagsMessage(name string) string {
+	return "[" + colorGreen + "]Cleared tags: " + name + "[-]"
 }
