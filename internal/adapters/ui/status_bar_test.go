@@ -40,3 +40,20 @@ func TestEmptyHintsOmitsNoOpKeys(t *testing.T) {
 		}
 	}
 }
+
+// TestDefaultHintsOmitsSortForWidth verifies the populated-state footer hides the
+// Sort hint to stay on a single line. Unlike the empty-state omissions (no-ops),
+// Sort stays fully functional here — the 's' key still cycles sort mode — so this
+// is a display-only trade-off, locked against being silently re-added.
+func TestDefaultHintsOmitsSortForWidth(t *testing.T) {
+	got := defaultHints()
+	if strings.Contains(got, "Sort") {
+		t.Errorf("defaultHints should omit Sort to save width, but found it: %q", got)
+	}
+	// Core keys must still be advertised.
+	for _, want := range []string{"Navigate", "Enter", "Kill", "Detach", "Tags", "Refresh", "Pin/Unpin", "Search", "Quit"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("defaultHints missing expected key %q: %q", want, got)
+		}
+	}
+}

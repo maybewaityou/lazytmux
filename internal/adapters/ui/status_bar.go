@@ -46,6 +46,10 @@ func (s *StatusBar) ShowEmpty() { s.SetText(emptyHints()) }
 
 // defaultHints follows the same ordering rule as lazyssh:
 // Navigate → primary action → feature keys → Pin → Search → Quit.
+//
+// Sort is intentionally omitted from the hint line to keep the footer on a
+// single line — the 's' key still cycles sort mode (see handleGlobalKeys), and
+// the active sort is surfaced in the list title via SetSortTitle instead.
 func defaultHints() string {
 	k := colorCyan // key color (matches lazyssh); descriptions use the default foreground
 	return "[" + k + "]↑↓[-] Navigate  • " +
@@ -56,7 +60,6 @@ func defaultHints() string {
 		"[" + k + "]d[-] Detach  • " +
 		"[" + k + "]k[-] Kill  • " +
 		"[" + k + "]t[-] Tags  • " +
-		"[" + k + "]s[-] Sort  • " +
 		"[" + k + "]r[-] Refresh  • " +
 		"[" + k + "]p[-] Pin/Unpin  • " +
 		"[" + k + "]/[-] Search  • " +
