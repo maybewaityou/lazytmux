@@ -61,6 +61,7 @@ func (s *service) LoadWindows(sess *domain.Session) error {
 
 func (s *service) CreateSession(name string) error { return s.repo.CreateSession(name) }
 func (s *service) KillSession(name string) error   { return s.repo.KillSession(name) }
+func (s *service) DetachSession(name string) error { return s.repo.DetachSession(name) }
 func (s *service) RenameSession(o, n string) error { return s.repo.RenameSession(o, n) }
 
 func (s *service) TogglePin(name string) error {

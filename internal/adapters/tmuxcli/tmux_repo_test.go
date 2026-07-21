@@ -118,6 +118,18 @@ func TestCreateKillRename(t *testing.T) {
 	}
 }
 
+func TestDetachSession(t *testing.T) {
+	runner := &FakeRunner{}
+	repo := NewRepository(runner)
+
+	if err := repo.DetachSession("foo"); err != nil {
+		t.Fatalf("DetachSession: %v", err)
+	}
+	if !equalArgs(runner.AllCalls[len(runner.AllCalls)-1], "detach-client", "-s", "foo") {
+		t.Errorf("detach args: %v", runner.AllCalls)
+	}
+}
+
 func TestSwitchOrAttachInsideTmux(t *testing.T) {
 	t.Setenv("TMUX", "/tmp/tmux-1000/default,1234,0")
 	runner := &FakeRunner{}

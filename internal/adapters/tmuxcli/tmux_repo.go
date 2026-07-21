@@ -83,6 +83,17 @@ func (r *repository) KillSession(name string) error {
 	return err
 }
 
+// DetachSession disconnects the client attached to the named session via
+// `tmux detach-client -s <name>`. The session itself keeps running in the
+// background. detach-client acts on the tmux server, so unlike attach there is
+// no $TMUX branch and no interactive suspend — it works the same inside or
+// outside tmux. A session with no client surfaces as a tmux error, which the
+// caller surfaces as a short "detach failed" toast.
+func (r *repository) DetachSession(name string) error {
+	_, err := r.runner.RunOutput("detach-client", "-s", name)
+	return err
+}
+
 func (r *repository) RenameSession(oldName, newName string) error {
 	_, err := r.runner.RunOutput("rename-session", "-t", oldName, newName)
 	return err

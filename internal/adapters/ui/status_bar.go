@@ -53,6 +53,7 @@ func defaultHints() string {
 		"[" + k + "]c[-] Copy  • " +
 		"[" + k + "]a[-] New  • " +
 		"[" + k + "]e[-] Rename  • " +
+		"[" + k + "]d[-] Detach  • " +
 		"[" + k + "]k[-] Kill  • " +
 		"[" + k + "]t[-] Tags  • " +
 		"[" + k + "]s[-] Sort  • " +

@@ -44,6 +44,10 @@ func (f *fakeRepo) KillSession(name string) error {
 	f.calls = append(f.calls, "kill:"+name)
 	return nil
 }
+func (f *fakeRepo) DetachSession(name string) error {
+	f.calls = append(f.calls, "detach:"+name)
+	return nil
+}
 func (f *fakeRepo) RenameSession(o, n string) error {
 	f.calls = append(f.calls, "rename:"+o+"->"+n)
 	return nil
@@ -62,8 +66,9 @@ func (f *fakeRepo) CurrentSession() (string, bool) {
 }
 
 type fakeMeta struct {
-	pins map[string]bool
-	tags map[string][]string
+	pins              map[string]bool
+	tags              map[string][]string
+	lastAttachedCalls int
 }
 
 func newFakeMeta() *fakeMeta {
@@ -81,7 +86,7 @@ func (m *fakeMeta) SetPinned(n string, p bool) error {
 }
 func (m *fakeMeta) Tags(n string) []string                  { return m.tags[n] }
 func (m *fakeMeta) SetTags(n string, t []string) error      { m.tags[n] = t; return nil }
-func (m *fakeMeta) SetLastAttached(n string) error          { return nil }
+func (m *fakeMeta) SetLastAttached(n string) error          { m.lastAttachedCalls++; return nil }
 func (m *fakeMeta) LastAttached(n string) (time.Time, bool) { return time.Time{}, false }
 
 func TestListSessionsInjectsMetadata(t *testing.T) {
@@ -140,5 +145,24 @@ func TestCurrentSessionDelegates(t *testing.T) {
 	}
 	if repo.calls[len(repo.calls)-1] != "current" {
 		t.Errorf("expected repo.CurrentSession to be called, calls=%v", repo.calls)
+	}
+}
+
+// TestDetachSessionDelegates verifies detach forwards to the repo and — unlike
+// EnterSession — does NOT refresh LastAttached: that records attach time, and
+// detach is the inverse direction.
+func TestDetachSessionDelegates(t *testing.T) {
+	repo := &fakeRepo{}
+	meta := newFakeMeta()
+	svc := NewSessionService(repo, meta, nil)
+
+	if err := svc.DetachSession("work"); err != nil {
+		t.Fatalf("DetachSession: %v", err)
+	}
+	if repo.calls[len(repo.calls)-1] != "detach:work" {
+		t.Errorf("expected repo detach, calls=%v", repo.calls)
+	}
+	if meta.lastAttachedCalls != 0 {
+		t.Errorf("detach must not update LastAttached, got %d call(s)", meta.lastAttachedCalls)
 	}
 }

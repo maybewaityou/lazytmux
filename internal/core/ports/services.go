@@ -40,6 +40,7 @@ type SessionService interface {
 	LoadWindows(s *domain.Session) error
 	CreateSession(name string) error
 	KillSession(name string) error
+	DetachSession(name string) error
 	RenameSession(oldName, newName string) error
 	EnterSession(name string) error
 	TogglePin(name string) error

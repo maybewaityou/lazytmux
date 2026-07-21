@@ -88,6 +88,9 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	case 'k':
 		t.actOnSelected(t.showKillConfirmModal)
 		return nil
+	case 'd':
+		t.actOnSelected(t.showDetachConfirmModal)
+		return nil
 	case 'c':
 		t.actOnSelected(func(s domain.Session) {
 			_ = clipboard.WriteAll("tmux attach -t " + s.Name)
@@ -326,4 +329,53 @@ func (t *tui) killSession(s domain.Session) {
 func (t *tui) closeModal() {
 	t.app.SetRoot(t.root, true)
 	t.app.SetFocus(t.sessionList)
+}
+
+// showDetachConfirmModal asks the user to confirm before detaching a session.
+// Detach is non-destructive — the session keeps running in the background — so
+// the confirm button is green rather than kill's red. Cancel stays the safe
+// default: the focused button and ESC both land on Cancel. Confirm with d/D or
+// by focusing Detach + Enter (the trigger key doubles as the confirm key, same
+// pattern as k for kill).
+func (t *tui) showDetachConfirmModal(s domain.Session) {
+	msg := fmt.Sprintf("Detach session %s?\n\nThe session keeps running in the background.", s.Name)
+	modal := tview.NewModal().
+		SetText(msg).
+		AddButtons([]string{
+			"[" + colorAccent + "]C[-]ancel",
+			"[" + colorGreen + "]D[-]etach",
+		}).
+		SetDoneFunc(func(buttonIndex int, _ string) {
+			if buttonIndex == 1 {
+				t.detachSession(s)
+			}
+			t.closeModal()
+		})
+	// Letter shortcuts mirror the buttons. ESC falls through to SetDoneFunc
+	// with buttonIndex -1, which matches no branch and therefore cancels.
+	modal.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Rune() {
+		case 'c', 'C':
+			t.closeModal()
+			return nil
+		case 'd', 'D':
+			t.detachSession(s)
+			t.closeModal()
+			return nil
+		}
+		return e
+	})
+	t.app.SetRoot(modal, true)
+}
+
+// detachSession runs `tmux detach-client` and reports the outcome on the footer.
+// Unlike kill, a success toast is shown: the session does not disappear, so
+// without explicit feedback the user could not tell whether anything happened.
+func (t *tui) detachSession(s domain.Session) {
+	if err := t.serve.DetachSession(s.Name); err == nil {
+		t.refresh()
+		t.setStatusTemporary("[" + colorGreen + "]detached: " + s.Name + "[-]")
+	} else {
+		t.setStatusTemporary("[" + colorRed + "]detach failed[-]")
+	}
 }

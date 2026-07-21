@@ -12,7 +12,7 @@
 
 lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 <br/>
-借助 lazytmux,你可以列出、搜索、排序、置顶、创建、重命名、杀死(kill)并进入 tmux 会话 —— 全部在一个清爽、键盘驱动的 TUI 中完成。再也不用在 `tmux ls` 和 `tmux attach -t <name>` 之间来回切换;它就是套在你本地 tmux server 之上的一个 Tokyo Night 主题仪表盘。
+借助 lazytmux,你可以列出、搜索、排序、置顶、创建、重命名、杀死(kill)、分离(detach)并进入 tmux 会话 —— 全部在一个清爽、键盘驱动的 TUI 中完成。再也不用在 `tmux ls` 和 `tmux attach -t <name>` 之间来回切换;它就是套在你本地 tmux server 之上的一个 Tokyo Night 主题仪表盘。
 
 ---
 
@@ -23,6 +23,7 @@ lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 - ➕ 从 UI 创建新会话。
 - ✏️ 就地重命名会话。
 - 🗑️ 安全地杀死(kill)会话。
+- 🔌 分离(detach)会话,让其在后台继续运行。
 - 📌 置顶 / 取消置顶常用会话,让它们始终排在顶部。
 
 ### 快速导航
@@ -41,7 +42,7 @@ lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 
 lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进制程序的一个 TUI 封装。
 
-- 所有操作(列出、创建、重命名、杀死、挂载)都通过 `tmux` CLI 执行 —— lazytmux 从不直接连接 tmux server。
+- 所有操作(列出、创建、重命名、杀死、分离、挂载)都通过 `tmux` CLI 执行 —— lazytmux 从不直接连接 tmux server。
 
 - 你的 `~/.tmux.conf` 和现有会话永远不会被 lazytmux 读取或修改。
 
@@ -77,7 +78,7 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 ### 🗑️ 杀死会话
 <img src="./docs/resources/kill.png" alt="杀死会话" width="900" />
 
-按 `d` 安全地杀死(kill)选中会话,底部状态栏会确认操作结果。
+按 `k` 安全地杀死(kill)选中会话,底部状态栏会确认操作结果。
 
 ---
 
@@ -165,7 +166,8 @@ make build-all
 | `Enter`    | 进入会话(`switch-client` / `attach`)  |
 | `a`        | 新建会话                              |
 | `e`        | 重命名会话                            |
-| `d`        | 杀死会话                              |
+| `d`        | 分离会话(保留后台运行)                |
+| `k`        | 杀死会话                              |
 | `p`        | 置顶 / 取消置顶                       |
 | `s`        | 切换排序字段                          |
 | `S`        | 切换排序字段(跳过一项)              |

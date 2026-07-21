@@ -31,10 +31,10 @@ func TestEmptyHintsAnchorsUsefulKeys(t *testing.T) {
 }
 
 // TestEmptyHintsOmitsNoOpKeys verifies the empty-state footer drops the keys that
-// are meaningless with nothing selected (Enter/copy/rename/kill/tags/pin/sort).
+// are meaningless with nothing selected (Enter/copy/rename/kill/detach/tags/pin/sort).
 func TestEmptyHintsOmitsNoOpKeys(t *testing.T) {
 	got := emptyHints()
-	for _, dead := range []string{"Kill", "Copy", "Rename", "Pin", "Tags", "Sort", "Enter"} {
+	for _, dead := range []string{"Kill", "Detach", "Copy", "Rename", "Pin", "Tags", "Sort", "Enter"} {
 		if strings.Contains(got, dead) {
 			t.Errorf("emptyHints should not advertise no-op %q: %q", dead, got)
 		}

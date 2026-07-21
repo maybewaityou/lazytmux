@@ -22,6 +22,11 @@ type SessionRepository interface {
 	ListWindows(sessionName string) ([]domain.Window, error)
 	CreateSession(name string) error
 	KillSession(name string) error
+	// DetachSession disconnects the client attached to the named session via
+	// `tmux detach-client -s <name>`. The session itself keeps running. Unlike
+	// SwitchOrAttach, this targets the tmux server directly, so it works whether
+	// or not lazytmux runs inside tmux.
+	DetachSession(name string) error
 	RenameSession(oldName, newName string) error
 	// SwitchOrAttach runs the appropriate "enter" command. It returns a sentinel
 	// error ErrSuspendRequired when the TUI must be suspended for an interactive

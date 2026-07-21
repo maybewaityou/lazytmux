@@ -12,7 +12,7 @@ A terminal-based, interactive **tmux session manager** — inspired by [lazyssh]
 
 lazytmux brings the lazyssh experience to your tmux server.
 <br/>
-With lazytmux, you can list, search, sort, pin, create, rename, kill, and enter your tmux sessions — all from a clean, keyboard-driven TUI. No more juggling `tmux ls` and `tmux attach -t <name>`; just a Tokyo Night–themed dashboard over your local tmux server.
+With lazytmux, you can list, search, sort, pin, create, rename, kill, detach, and enter your tmux sessions — all from a clean, keyboard-driven TUI. No more juggling `tmux ls` and `tmux attach -t <name>`; just a Tokyo Night–themed dashboard over your local tmux server.
 
 ---
 
@@ -23,6 +23,7 @@ With lazytmux, you can list, search, sort, pin, create, rename, kill, and enter 
 - ➕ Create new sessions from the UI.
 - ✏️ Rename sessions in place.
 - 🗑️ Kill sessions safely.
+- 🔌 Detach sessions (keep them running in the background).
 - 📌 Pin / unpin favorites to keep them at the top.
 
 ### Quick Navigation
@@ -41,7 +42,7 @@ With lazytmux, you can list, search, sort, pin, create, rename, kill, and enter 
 
 lazytmux does not introduce any new risks. It is simply a TUI wrapper around your system's native `tmux` binary.
 
-- All operations (list, create, rename, kill, attach) are executed through the `tmux` CLI — lazytmux never talks to the tmux server directly.
+- All operations (list, create, rename, kill, detach, attach) are executed through the `tmux` CLI — lazytmux never talks to the tmux server directly.
 
 - Your `~/.tmux.conf` and existing sessions are never read or modified by lazytmux.
 
@@ -77,7 +78,7 @@ Press `a` to spin up a new tmux session straight from the UI.
 ### 🗑️ Kill Session
 <img src="./docs/resources/kill.png" alt="Kill a session" width="900" />
 
-Press `d` to safely kill the selected session — the status bar confirms the result.
+Press `k` to safely kill the selected session — the status bar confirms the result.
 
 ---
 
@@ -165,7 +166,8 @@ make build-all
 | `Enter` | Enter session (`switch-client` / `attach`) |
 | `a`   | New session                             |
 | `e`   | Rename session                          |
-| `d`   | Kill session                            |
+| `d`   | Detach session (keeps it running)       |
+| `k`   | Kill session                            |
 | `p`   | Pin / unpin                             |
 | `s`   | Cycle sort field                        |
 | `S`   | Cycle sort field (skip one)             |
