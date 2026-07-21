@@ -28,6 +28,11 @@ type MetadataStore interface {
 	SetTags(name string, tags []string) error
 	SetLastAttached(name string) error
 	LastAttached(name string) (time.Time, bool)
+	// Rename moves all metadata (pin/tags/lastAttached) from oldName to newName
+	// with mv semantics — newName becomes an exact copy of oldName's state
+	// (overwriting any stale entry at newName), then oldName is removed. A
+	// single atomic save writes the result.
+	Rename(oldName, newName string) error
 }
 
 // SuspendFunc suspends the TUI, runs the callback interactively, then resumes.

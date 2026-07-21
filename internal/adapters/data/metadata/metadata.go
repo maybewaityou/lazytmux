@@ -148,6 +148,31 @@ func (s *Store) SetLastAttached(name string) error {
 	return s.save()
 }
 
+// Rename moves all metadata (pin/tags/lastAttached) from oldName to newName
+// with mv semantics: newName becomes an exact copy of oldName's state
+// (overwriting any stale entry at newName), then oldName is removed.
+// A single atomic save writes the result.
+func (s *Store) Rename(oldName, newName string) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	relocate(s.data.Pins, oldName, newName)
+	relocate(s.data.Tags, oldName, newName)
+	relocate(s.data.LastAttached, oldName, newName)
+	return s.save()
+}
+
+// relocate moves a single map entry with mv semantics: the target is cleared
+// first (overwrite), then the source value — if present — is moved across,
+// then the source key is removed. Generic over the value type so it serves all
+// three metadata maps without reflection.
+func relocate[V any](m map[string]V, oldName, newName string) {
+	delete(m, newName)
+	if v, ok := m[oldName]; ok {
+		m[newName] = v
+	}
+	delete(m, oldName)
+}
+
 func (s *Store) LastAttached(name string) (time.Time, bool) {
 	s.mu.RLock()
 	defer s.mu.RUnlock()

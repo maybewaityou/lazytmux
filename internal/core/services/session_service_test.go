@@ -88,6 +88,7 @@ func (m *fakeMeta) Tags(n string) []string                  { return m.tags[n] }
 func (m *fakeMeta) SetTags(n string, t []string) error      { m.tags[n] = t; return nil }
 func (m *fakeMeta) SetLastAttached(n string) error          { m.lastAttachedCalls++; return nil }
 func (m *fakeMeta) LastAttached(n string) (time.Time, bool) { return time.Time{}, false }
+func (m *fakeMeta) Rename(oldName, newName string) error    { return nil }
 
 func TestListSessionsInjectsMetadata(t *testing.T) {
 	repo := &fakeRepo{sessions: []domain.Session{{Name: "main"}, {Name: "dev"}}}

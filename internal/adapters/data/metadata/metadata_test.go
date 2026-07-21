@@ -96,3 +96,71 @@ func TestPersistenceAcrossInstances(t *testing.T) {
 		t.Fatal("pin did not persist to disk")
 	}
 }
+
+func TestRename(t *testing.T) {
+	s := newTestStore(t)
+	_ = s.SetPinned("foo", true)
+	_ = s.SetTags("foo", []string{"work"})
+	_ = s.SetLastAttached("foo")
+	before, _ := s.LastAttached("foo")
+
+	if err := s.Rename("foo", "bar"); err != nil {
+		t.Fatalf("Rename: %v", err)
+	}
+	// old name fully cleared
+	if s.IsPinned("foo") || len(s.Tags("foo")) != 0 {
+		t.Errorf("old name should be cleared, pinned=%v tags=%v", s.IsPinned("foo"), s.Tags("foo"))
+	}
+	// pin migrated
+	if !s.IsPinned("bar") {
+		t.Error("pin did not migrate to bar")
+	}
+	// tags migrated
+	got := s.Tags("bar")
+	sort.Strings(got)
+	if len(got) != 1 || got[0] != "work" {
+		t.Errorf("tags did not migrate to bar: %v", got)
+	}
+	// lastAttached migrated AND timestamp preserved
+	la, ok := s.LastAttached("bar")
+	if !ok {
+		t.Fatal("lastAttached did not migrate to bar")
+	}
+	if !la.Equal(before) {
+		t.Errorf("lastAttached timestamp not preserved: got %v want %v", la, before)
+	}
+}
+
+func TestRenameOverwritesTarget(t *testing.T) {
+	s := newTestStore(t)
+	_ = s.SetTags("foo", []string{"work"})
+	_ = s.SetTags("bar", []string{"stale-orphan"}) // pre-existing entry at target
+
+	if err := s.Rename("foo", "bar"); err != nil {
+		t.Fatalf("Rename: %v", err)
+	}
+	got := s.Tags("bar")
+	sort.Strings(got)
+	// mv semantics: bar becomes an exact copy of foo, overwriting the orphan.
+	if len(got) != 1 || got[0] != "work" {
+		t.Errorf("target should be overwritten with source tags, got %v", got)
+	}
+	if len(s.Tags("foo")) != 0 {
+		t.Errorf("source should be removed, got %v", s.Tags("foo"))
+	}
+}
+
+func TestSetTagsEmptyDeletes(t *testing.T) {
+	s := newTestStore(t)
+	_ = s.SetTags("foo", []string{"work"})
+	if err := s.SetTags("foo", nil); err != nil {
+		t.Fatalf("SetTags(nil): %v", err)
+	}
+	if got := s.Tags("foo"); len(got) != 0 {
+		t.Errorf("expected empty after SetTags(nil), got %v", got)
+	}
+	// key must be gone entirely, not left as a zero-length slice
+	if _, ok := s.data.Tags["foo"]; ok {
+		t.Error("expected tags key to be deleted, not left empty")
+	}
+}
