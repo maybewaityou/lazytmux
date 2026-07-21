@@ -170,7 +170,7 @@ make build-all
 | `d`   | Detach session (keeps it running)       |
 | `k`   | Kill session                            |
 | `p`   | Pin / unpin                             |
-| `t`   | Edit tags (space-separated)             |
+| `t`   | Edit tags (comma-separated)             |
 | `s`   | Cycle sort field                        |
 | `S`   | Cycle sort field (skip one)             |
 | `r`   | Refresh                                 |
