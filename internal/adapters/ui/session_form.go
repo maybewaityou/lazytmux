@@ -58,6 +58,15 @@ func NewSessionForm(title, placeholder string) *SessionForm {
 func (f *SessionForm) OnSubmit(fn func(string)) *SessionForm { f.onSubmit = fn; return f }
 func (f *SessionForm) OnCancel(fn func()) *SessionForm       { f.onCancel = fn; return f }
 
+// InitialValue 预填输入框文本(重命名时显示原名)。空串为 no-op,这样
+// 新建会话流程可以无副作用地传 ""。tview SetText 把光标置于文本末尾。
+func (f *SessionForm) InitialValue(v string) *SessionForm {
+	if v != "" {
+		f.input.SetText(v)
+	}
+	return f
+}
+
 // Primitive returns a centered, fixed-size modal wrapping the input.
 func (f *SessionForm) Primitive() tview.Primitive {
 	return tview.NewFlex().AddItem(nil, 0, 1, false).

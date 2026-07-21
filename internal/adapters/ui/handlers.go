@@ -66,7 +66,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		})
 		return nil
 	case 'a':
-		t.openForm("New session", "session name", func(name string) {
+		t.openForm("New session", "session name", "", func(name string) {
 			if err := t.serve.CreateSession(name); err == nil {
 				t.refresh()
 			} else {
@@ -76,7 +76,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		return nil
 	case 'e':
 		t.actOnSelected(func(s domain.Session) {
-			t.openForm("Rename", "new name", func(newName string) {
+			t.openForm("Rename", "new name", s.Name, func(newName string) {
 				if err := t.serve.RenameSession(s.Name, newName); err == nil {
 					t.refresh()
 				} else {
@@ -220,8 +220,9 @@ func (t *tui) actOnSelected(fn func(domain.Session)) {
 	fn(s)
 }
 
-func (t *tui) openForm(title, placeholder string, onSubmit func(string)) {
+func (t *tui) openForm(title, placeholder, initialValue string, onSubmit func(string)) {
 	form := NewSessionForm(title, placeholder).
+		InitialValue(initialValue).
 		OnSubmit(func(name string) {
 			name = strings.TrimSpace(name)
 			if name != "" {
