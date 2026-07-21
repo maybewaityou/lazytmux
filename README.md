@@ -49,6 +49,47 @@ lazytmux does not introduce any new risks. It is simply a TUI wrapper around you
 
 ---
 
+## 📷 Screenshots
+
+<div align="center">
+
+### 📋 Session Dashboard
+<img src="./docs/resources/list.png" alt="Session list dashboard" width="900" />
+
+Main dashboard listing every local tmux session with live status and window counts, a per-session details pane, and pinned favorites kept at the top.
+
+---
+
+### 🔎 Fuzzy Search
+<img src="./docs/resources/search.png" alt="Fuzzy search sessions" width="900" />
+
+Press `/`, type, and the list narrows to matching sessions in real time.
+
+---
+
+### ➕ Create Session
+<img src="./docs/resources/add.png" alt="Create a new session" width="900" />
+
+Press `a` to spin up a new tmux session straight from the UI.
+
+---
+
+### 🗑️ Kill Session
+<img src="./docs/resources/kill.png" alt="Kill a session" width="900" />
+
+Press `d` to safely kill the selected session — the status bar confirms the result.
+
+---
+
+### 🔄 Background Refresh
+<img src="./docs/resources/refresh.png" alt="Refresh session state" width="900" />
+
+Press `r` to pull fresh session and window state from tmux in the background while keeping your selection intact.
+
+</div>
+
+---
+
 ## 📦 Installation
 
 ### Option 1: Homebrew (macOS)
@@ -120,7 +161,7 @@ make build-all
 | Key   | Action                                  |
 | ----- | --------------------------------------- |
 | `/`   | Focus search bar                        |
-| `↑↓` / `jk` | Navigate sessions                |
+| `↑↓`  | Navigate sessions                |
 | `Enter` | Enter session (`switch-client` / `attach`) |
 | `a`   | New session                             |
 | `e`   | Rename session                          |

@@ -49,6 +49,47 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 
 ---
 
+## 📷 应用截图
+
+<div align="center">
+
+### 📋 会话仪表盘
+<img src="./docs/resources/list.png" alt="会话列表仪表盘" width="900" />
+
+主仪表盘列出本地所有 tmux 会话,带实时状态与窗口数、每会话详情面板,置顶的常用会话始终排在顶部。
+
+---
+
+### 🔎 模糊搜索
+<img src="./docs/resources/search.png" alt="模糊搜索会话" width="900" />
+
+按 `/` 输入,列表实时收窄到匹配的会话。
+
+---
+
+### ➕ 新建会话
+<img src="./docs/resources/add.png" alt="新建会话" width="900" />
+
+按 `a` 即可在 UI 中直接新建一个 tmux 会话。
+
+---
+
+### 🗑️ 杀死会话
+<img src="./docs/resources/kill.png" alt="杀死会话" width="900" />
+
+按 `d` 安全地杀死(kill)选中会话,底部状态栏会确认操作结果。
+
+---
+
+### 🔄 后台刷新
+<img src="./docs/resources/refresh.png" alt="刷新会话状态" width="900" />
+
+按 `r` 在后台从 tmux 拉取最新的会话与窗口状态,并保持当前选中不变。
+
+</div>
+
+---
+
 ## 📦 安装
 
 ### Option 1: Homebrew(macOS)
@@ -120,7 +161,7 @@ make build-all
 | 按键       | 动作                                  |
 | ---------- | ------------------------------------- |
 | `/`        | 聚焦搜索框                            |
-| `↑↓` / `jk` | 上下浏览会话                         |
+| `↑↓`       | 上下浏览会话                         |
 | `Enter`    | 进入会话(`switch-client` / `attach`)  |
 | `a`        | 新建会话                              |
 | `e`        | 重命名会话                            |
