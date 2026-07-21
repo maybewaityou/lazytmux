@@ -17,6 +17,9 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/maybewaityou/lazytmux/internal/core/domain"
+	"github.com/maybewaityou/lazytmux/internal/core/ports"
 )
 
 // TestRefreshStatusMessage verifies the post-refresh footer toast: a non-empty
@@ -45,5 +48,54 @@ func TestRefreshStatusMessage(t *testing.T) {
 		if !strings.Contains(got, tc.want) {
 			t.Errorf("refreshStatusMessage(%d) = %q, want it to contain %q", tc.count, got, tc.want)
 		}
+	}
+}
+
+// staleTestServe satisfies ports.SessionService for details-rendering tests,
+// overriding only LoadWindows. Other methods stay nil via embedding — the tests
+// never call them.
+type staleTestServe struct {
+	ports.SessionService
+	loadWindows func(*domain.Session) error
+}
+
+func (s *staleTestServe) LoadWindows(sess *domain.Session) error {
+	return s.loadWindows(sess)
+}
+
+// TestLoadWindowsAndRenderGuardsStale reproduces the bug where an in-flight async
+// window load (captured for an earlier selection) finishes after the selection
+// has moved on and overwrites the details pane with stale data. The stale render
+// must be dropped; only the render matching the current generation may apply.
+func TestLoadWindowsAndRenderGuardsStale(t *testing.T) {
+	details := NewSessionDetails()
+	tt := &tui{
+		details: details,
+		serve: &staleTestServe{loadWindows: func(s *domain.Session) error {
+			s.Windows = []domain.Window{{Index: 1, Name: s.Name + "-win"}}
+			return nil
+		}},
+		queueDraw: func(f func()) { f() }, // drive async renders synchronously
+	}
+
+	// Selection "alpha" at generation 1 renders it.
+	tt.selectionGen = 1
+	tt.loadWindowsAndRender(domain.Session{Name: "alpha"}, 1)
+
+	// A newer selection bumps generation to 2 and renders "beta" as current.
+	tt.selectionGen = 2
+	tt.loadWindowsAndRender(domain.Session{Name: "beta"}, 2)
+	if got := details.GetText(true); !strings.Contains(got, "beta") {
+		t.Fatalf("expected details to show beta, got: %q", got)
+	}
+
+	// The stale "alpha" render (captured at gen 1) fires now. It must NOT overwrite
+	// beta — without the generation guard the pane flips back to alpha.
+	tt.loadWindowsAndRender(domain.Session{Name: "alpha"}, 1)
+	if got := details.GetText(true); strings.Contains(got, "alpha") {
+		t.Errorf("stale alpha render should be dropped, details still show alpha: %q", got)
+	}
+	if got := details.GetText(true); !strings.Contains(got, "beta") {
+		t.Errorf("details should still show beta after the stale render, got: %q", got)
 	}
 }

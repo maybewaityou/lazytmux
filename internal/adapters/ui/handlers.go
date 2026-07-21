@@ -124,14 +124,29 @@ func (t *tui) handleSearchInput(text string) {
 }
 
 func (t *tui) handleSelectionChange(s domain.Session) {
+	t.selectionGen++
 	t.details.Render(s)
-	// Lazy-load windows in the background, then re-render.
-	go func(cp domain.Session) {
-		_ = t.serve.LoadWindows(&cp)
-		t.app.QueueUpdateDraw(func() {
-			t.details.Render(cp)
-		})
-	}(s)
+	// Windows come from a separate tmux call, so load them asynchronously and
+	// re-render once they arrive.
+	go t.loadWindowsAndRender(s, t.selectionGen)
+}
+
+// loadWindowsAndRender fetches windows for s and re-renders the details pane,
+// but only if gen still matches the current selection generation. This drops
+// stale in-flight loads — e.g. the first session shown at startup, or a session
+// navigated past — whose slow LoadWindows completes after the selection has
+// already moved on, which would otherwise overwrite the pane with stale data.
+// The render is routed through queueDraw because tview widgets are not safe to
+// touch from a goroutine.
+func (t *tui) loadWindowsAndRender(s domain.Session, gen uint64) {
+	cp := s
+	_ = t.serve.LoadWindows(&cp)
+	t.queueDraw(func() {
+		if t.selectionGen != gen {
+			return
+		}
+		t.details.Render(cp)
+	})
 }
 
 // blurSearchBar returns focus to the session list without clearing the query.

@@ -51,6 +51,13 @@ type tui struct {
 	sortMode    SortMode
 	allCache    []domain.Session
 	statusTimer *time.Timer
+
+	// selectionGen tags each selection change so an in-flight async window load
+	// can detect that a newer selection has superseded it (see loadWindowsAndRender).
+	selectionGen uint64
+	// queueDraw schedules a function on the tview main loop; overridable in tests
+	// so an async render can be driven synchronously.
+	queueDraw func(func())
 }
 
 // NewTUI constructs the TUI. Sub-components are built in Run() via the
@@ -67,6 +74,7 @@ func (t *tui) Run() error {
 	}()
 	t.app = initializeTheme()
 	t.app.EnableMouse(true)
+	t.queueDraw = func(f func()) { t.app.QueueUpdateDraw(f) }
 	t.buildComponents().buildLayout().bindEvents().loadInitialData()
 	t.app.SetRoot(t.root, true)
 	t.app.SetFocus(t.sessionList)
