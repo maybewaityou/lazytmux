@@ -37,10 +37,13 @@ const activeThreshold = 60 * time.Second
 // Color tags sit OUTSIDE the %-N width specifiers so fmt pads only the visible
 // text (otherwise the tag bytes would corrupt the column width).
 func formatSessionLine(s domain.Session, current string) string {
-	// current column: fixed 2 visible cells (▶+space, or space+space) so every
-	// row left-aligns whether or not it is the current session.
+	// isCurrent drives both the row marker and the name styling so the "you are
+	// here" signal has a single semantic source. The marker column is a fixed
+	// 2 visible cells (▶+space, or space+space) so every row left-aligns
+	// whether or not it is the current session.
+	isCurrent := current != "" && s.Name == current
 	marker := " "
-	if current != "" && s.Name == current {
+	if isCurrent {
 		marker = "[" + colorAccent + "]▶[-]"
 	}
 	// pin column: fixed 3 cells so pinned/unpinned rows stay aligned.
@@ -49,7 +52,16 @@ func formatSessionLine(s domain.Session, current string) string {
 		pin = "[" + colorGreen + "]📌[-] "
 	}
 	icon := activityIcon(s.LastActivity, s.Attached)
-	name := "[" + colorPrimary + "::b]" + fmt.Sprintf("%-20s", s.Name) + "[-]"
+	// The current session's name uses the accent color (matching the ▶ marker)
+	// so it stands out beyond the row marker alone; other rows keep the default
+	// primary + bold. Color is the reliable differentiator — the ::b flag is
+	// terminal/font-dependent and may not render visibly. The tag stays outside
+	// the %-20s so column alignment is unaffected.
+	nameColor := colorPrimary + "::b"
+	if isCurrent {
+		nameColor = colorAccent + "::b"
+	}
+	name := "[" + nameColor + "]" + fmt.Sprintf("%-20s", s.Name) + "[-]"
 	wins := "[" + colorSecondary + "]" + fmt.Sprintf("%-8s", fmt.Sprintf("%d win", s.WindowsCount)) + "[-]"
 	attach := "[" + colorDim + "]Last Attached: " + humanizeDuration(s.LastAttached) + "[-]"
 	return fmt.Sprintf("%s %s%s %s  %s  %s", marker, pin, icon, name, wins, attach)

@@ -105,6 +105,23 @@ func TestFormatSessionLineAlignment(t *testing.T) {
 	}
 }
 
+// TestFormatSessionLineHighlightsCurrentName verifies the current session's
+// name is rendered with the accent color (colorAccent::b) so it stands out
+// beyond the ▶ marker, while every other session keeps the default primary +
+// bold (colorPrimary::b).
+func TestFormatSessionLineHighlightsCurrentName(t *testing.T) {
+	s := domain.Session{Name: "main", WindowsCount: 1, LastActivity: time.Now()}
+	if line := formatSessionLine(s, "main"); !strings.Contains(line, colorAccent+"::b]") {
+		t.Errorf("current session name must use accent color, got: %q", line)
+	}
+	if line := formatSessionLine(s, "main"); strings.Contains(line, colorPrimary+"::b]") {
+		t.Errorf("current session name must not keep primary color, got: %q", line)
+	}
+	if line := formatSessionLine(s, "other"); !strings.Contains(line, colorPrimary+"::b]") {
+		t.Errorf("non-current name must use primary color, got: %q", line)
+	}
+}
+
 // TestFormatSessionLineMarksCurrent verifies that the current session line is
 // prefixed with ▶ and that non-current or empty-current lines are not.
 func TestFormatSessionLineMarksCurrent(t *testing.T) {
