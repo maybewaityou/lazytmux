@@ -12,7 +12,7 @@ A terminal-based, interactive **tmux session manager** — inspired by [lazyssh]
 
 lazytmux brings the lazyssh experience to your tmux server.
 <br/>
-With lazytmux, you can list, search, sort, pin, create, rename, kill, detach, and enter your tmux sessions — all from a clean, keyboard-driven TUI. No more juggling `tmux ls` and `tmux attach -t <name>`; just a Tokyo Night–themed dashboard over your local tmux server.
+With lazytmux, you can list, search, sort, pin, tag, create, rename, kill, detach, and enter your tmux sessions — all from a clean, keyboard-driven TUI. No more juggling `tmux ls` and `tmux attach -t <name>`; just a Tokyo Night–themed dashboard over your local tmux server.
 
 ---
 
@@ -25,6 +25,7 @@ With lazytmux, you can list, search, sort, pin, create, rename, kill, detach, an
 - 🗑️ Kill sessions safely.
 - 🔌 Detach sessions (keep them running in the background).
 - 📌 Pin / unpin favorites to keep them at the top.
+- 🏷️ Tag sessions to group and find them later.
 
 ### Quick Navigation
 - 🔍 Fuzzy search by session name.
@@ -169,6 +170,7 @@ make build-all
 | `d`   | Detach session (keeps it running)       |
 | `k`   | Kill session                            |
 | `p`   | Pin / unpin                             |
+| `t`   | Edit tags (space-separated)             |
 | `s`   | Cycle sort field                        |
 | `S`   | Cycle sort field (skip one)             |
 | `r`   | Refresh                                 |

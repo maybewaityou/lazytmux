@@ -12,7 +12,7 @@
 
 lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 <br/>
-借助 lazytmux,你可以列出、搜索、排序、置顶、创建、重命名、杀死(kill)、分离(detach)并进入 tmux 会话 —— 全部在一个清爽、键盘驱动的 TUI 中完成。再也不用在 `tmux ls` 和 `tmux attach -t <name>` 之间来回切换;它就是套在你本地 tmux server 之上的一个 Tokyo Night 主题仪表盘。
+借助 lazytmux,你可以列出、搜索、排序、置顶、打标签、创建、重命名、杀死(kill)、分离(detach)并进入 tmux 会话 —— 全部在一个清爽、键盘驱动的 TUI 中完成。再也不用在 `tmux ls` 和 `tmux attach -t <name>` 之间来回切换;它就是套在你本地 tmux server 之上的一个 Tokyo Night 主题仪表盘。
 
 ---
 
@@ -25,6 +25,7 @@ lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 - 🗑️ 安全地杀死(kill)会话。
 - 🔌 分离(detach)会话,让其在后台继续运行。
 - 📌 置顶 / 取消置顶常用会话,让它们始终排在顶部。
+- 🏷️ 给会话打标签,方便分组与查找。
 
 ### 快速导航
 - 🔍 按会话名模糊搜索。
@@ -169,6 +170,7 @@ make build-all
 | `d`        | 分离会话(保留后台运行)                |
 | `k`        | 杀死会话                              |
 | `p`        | 置顶 / 取消置顶                       |
+| `t`        | 编辑标签(空格分隔)                   |
 | `s`        | 切换排序字段                          |
 | `S`        | 切换排序字段(跳过一项)              |
 | `r`        | 刷新                                  |

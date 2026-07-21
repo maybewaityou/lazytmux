@@ -97,6 +97,17 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 			t.setStatusTemporary("[" + colorGreen + "]copied: tmux attach -t " + s.Name + "[-]")
 		})
 		return nil
+	case 't':
+		t.actOnSelected(func(s domain.Session) {
+			t.openForm("Tags", "space-separated tags", strings.Join(s.Tags, " "), func(input string) {
+				if err := t.serve.SaveTags(s.Name, strings.Fields(input)); err == nil {
+					t.refresh()
+				} else {
+					t.setStatusTemporary("[" + colorRed + "]tags failed[-]")
+				}
+			})
+		})
+		return nil
 	}
 	switch e.Key() {
 	case tcell.KeyEnter:
