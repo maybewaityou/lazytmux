@@ -85,7 +85,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 			})
 		})
 		return nil
-	case 'd':
+	case 'k':
 		t.actOnSelected(t.showKillConfirmModal)
 		return nil
 	case 'c':
