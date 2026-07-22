@@ -102,3 +102,33 @@ func TestSetCurrentMarksRenderedLine(t *testing.T) {
 		t.Errorf("current row must carry ▶, got: %q", beta)
 	}
 }
+
+// TestSetFilterAppendsToTitle verifies that an active filter is surfaced in the
+// list border title alongside the sort mode, and that clearing it removes the
+// Filter segment.
+func TestSetFilterAppendsToTitle(t *testing.T) {
+	sl := NewSessionList()
+	sl.SetSortTitle("Name ↑")
+	title := sl.GetTitle()
+	if !strings.Contains(title, "Sort: Name ↑") {
+		t.Fatalf("title missing sort: %q", title)
+	}
+	if strings.Contains(title, "Filter:") {
+		t.Errorf("title should not show Filter when none set: %q", title)
+	}
+
+	sl.SetFilter("work, personal")
+	title = sl.GetTitle()
+	if !strings.Contains(title, "Filter: work, personal") {
+		t.Errorf("title missing filter: %q", title)
+	}
+	if !strings.Contains(title, "Sort: Name ↑") {
+		t.Errorf("title lost sort when filter set: %q", title)
+	}
+
+	sl.SetFilter("")
+	title = sl.GetTitle()
+	if strings.Contains(title, "Filter:") {
+		t.Errorf("title should drop Filter after clear: %q", title)
+	}
+}

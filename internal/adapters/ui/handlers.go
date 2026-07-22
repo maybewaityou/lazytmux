@@ -220,6 +220,7 @@ func (t *tui) syncDetails() {
 func (t *tui) applySortAndRender() {
 	sortSessionsForUI(t.allCache, t.sortMode, t.serve.LastAttached)
 	t.sessionList.SetSortTitle(t.sortMode.String())
+	t.sessionList.SetFilter(filterDescription(t.tagFilter))
 	t.sessionList.UpdateSessions(t.visibleSessions())
 }
 

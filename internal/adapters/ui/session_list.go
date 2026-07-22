@@ -26,6 +26,8 @@ type SessionList struct {
 	*tview.List
 	sessions          []domain.Session
 	current           string
+	sortLabel         string // current sort mode label, e.g. "Name ↑"
+	filterLabel       string // current filter label, "" when no filter
 	onSelectionChange func(domain.Session)
 	onReturnToSearch  func()
 }
@@ -114,7 +116,26 @@ func (sl *SessionList) OnReturnToSearch(fn func()) *SessionList {
 // ▶ marker at the start of the matching row. Call once before the first render.
 func (sl *SessionList) SetCurrent(name string) *SessionList { sl.current = name; return sl }
 
-// SetSortTitle surfaces the current sort mode in the list border title.
+// SetSortTitle records the sort label and refreshes the composed border title.
 func (sl *SessionList) SetSortTitle(mode string) {
-	sl.List.SetTitle(" Sessions — Sort: " + mode + " ")
+	sl.sortLabel = mode
+	sl.refreshTitle()
+}
+
+// SetFilter records the active filter label ("" = no filter) and refreshes the
+// composed border title. The filter is shown alongside the sort mode so both
+// pieces of view state share one surface — mirroring how sort is already shown.
+func (sl *SessionList) SetFilter(filter string) {
+	sl.filterLabel = filter
+	sl.refreshTitle()
+}
+
+// refreshTitle composes the list border title: always "Sort: <mode>", plus
+// "— Filter: <tags>" when a filter is active.
+func (sl *SessionList) refreshTitle() {
+	title := " Sessions — Sort: " + sl.sortLabel + " "
+	if sl.filterLabel != "" {
+		title = " Sessions — Sort: " + sl.sortLabel + " — Filter: " + sl.filterLabel + " "
+	}
+	sl.List.SetTitle(title)
 }
