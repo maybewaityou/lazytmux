@@ -346,6 +346,7 @@ func (t *tui) openHelp() {
 			AddItem(nil, 0, 1, false), 48, 0, true).
 		AddItem(nil, 0, 1, false)
 	t.app.SetRoot(flex, true)
+	t.app.SetFocus(help)
 }
 
 // showKillConfirmModal asks the user to confirm before killing a session,
