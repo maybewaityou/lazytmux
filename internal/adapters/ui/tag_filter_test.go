@@ -81,12 +81,12 @@ func TestFilterDescription(t *testing.T) {
 
 func TestFormatTagItem(t *testing.T) {
 	unchecked := formatTagItem("work", false)
-	if unchecked != "[ ] work" {
-		t.Errorf("unchecked = %q, want %q", unchecked, "[ ] work")
+	if want := "  [" + colorDim + "]○[-]  work"; unchecked != want {
+		t.Errorf("unchecked = %q, want %q", unchecked, want)
 	}
 	checked := formatTagItem("work", true)
-	if checked != "["+colorGreen+"][x][-] work" {
-		t.Errorf("checked = %q, want [%s][x][-] work", checked, colorGreen)
+	if want := "  [" + colorGreen + "]●[-]  work"; checked != want {
+		t.Errorf("checked = %q, want %q", checked, want)
 	}
 }
 

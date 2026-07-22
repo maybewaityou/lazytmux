@@ -39,30 +39,24 @@ func (s *StatusBar) SetStatus(msg string) { s.SetText(msg) }
 // ResetHints restores the default keybinding hints.
 func (s *StatusBar) ResetHints() { s.SetText(defaultHints()) }
 
-// ShowEmpty swaps in the minimal empty-state hint. With no sessions selected,
-// most keys (Enter/copy/rename/kill/tags/pin/sort) are no-ops, so we surface
-// only the actions that still work: create, refresh, quit.
+// ShowEmpty swaps in the minimal empty-state hint. With no sessions loaded, most
+// keys are no-ops, so we surface only the actions that still work plus a pointer
+// to the full reference.
 func (s *StatusBar) ShowEmpty() { s.SetText(emptyHints()) }
 
-// defaultHints follows the same ordering rule as lazyssh:
-// Navigate → primary action → feature keys → Pin → Search → Quit.
-//
-// Sort is intentionally omitted from the hint line to keep the footer on a
-// single line — the 's' key still cycles sort mode (see handleGlobalKeys), and
-// the active sort is surfaced in the list title via SetSortTitle instead.
+// defaultHints shows the primary navigation and session-action keys plus a
+// pointer to the full reference (?). Less-frequent actions (copy/tags/pin/sort/
+// filter) live behind ?; the active sort and tag filter are surfaced in the list
+// title (SetSortTitle / SetFilter) so they don't need a footer slot.
 func defaultHints() string {
-	k := colorCyan // key color (matches lazyssh); descriptions use the default foreground
+	k := colorCyan
 	return "[" + k + "]↑↓[-] Navigate  • " +
 		"[" + k + "]Enter[-] Enter  • " +
-		"[" + k + "]c[-] Copy  • " +
 		"[" + k + "]a[-] New  • " +
 		"[" + k + "]e[-] Rename  • " +
 		"[" + k + "]d[-] Detach  • " +
 		"[" + k + "]k[-] Kill  • " +
-		"[" + k + "]t[-] Tags  • " +
-		"[" + k + "]f[-] Filter  • " +
 		"[" + k + "]r[-] Refresh  • " +
-		"[" + k + "]p[-] Pin/Unpin  • " +
 		"[" + k + "]/[-] Search  • " +
 		"[" + k + "]?[-] Help  • " +
 		"[" + k + "]q[-] Quit"
@@ -74,8 +68,6 @@ func emptyHints() string {
 	k := colorCyan
 	return "[" + k + "]No sessions[-]  •  " +
 		"[" + k + "]a[-] New  •  " +
-		"[" + k + "]r[-] Refresh  •  " +
-		"[" + k + "]/[-] Search  •  " +
 		"[" + k + "]?[-] Help  •  " +
 		"[" + k + "]q[-] Quit"
 }

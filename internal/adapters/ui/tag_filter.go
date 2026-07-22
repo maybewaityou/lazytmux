@@ -71,14 +71,16 @@ func filterDescription(tags []string) string {
 	return strings.Join(tags, ", ")
 }
 
-// formatTagItem renders one row of the tag-filter modal: a checkbox plus the
-// tag name. The checked box uses colorGreen so the selection state is visible
-// at a glance even on a dim terminal.
+// formatTagItem renders one row of the tag-filter modal: a filled dot (●) when
+// selected, a hollow dot (○) when not, padded with leading and trailing space so
+// the marker breathes away from the list border and the tag name. ● uses
+// colorGreen so the selection state pops at a glance even on a dim terminal; ○
+// uses colorDim.
 func formatTagItem(tag string, selected bool) string {
 	if selected {
-		return "[" + colorGreen + "][x][-] " + tag
+		return "  [" + colorGreen + "]●[-]  " + tag
 	}
-	return "[ ] " + tag
+	return "  [" + colorDim + "]○[-]  " + tag
 }
 
 // filterByName keeps sessions whose Name is a fuzzy match for query (reuses

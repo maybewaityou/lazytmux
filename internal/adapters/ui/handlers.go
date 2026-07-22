@@ -341,12 +341,12 @@ func (t *tui) openHelp() {
 	})
 	flex := tview.NewFlex().AddItem(nil, 0, 1, false).
 		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
-			AddItem(nil, 0, 1, false).
+			AddItem(nil, 1, 0, false).
 			AddItem(help, 0, 1, true).
-			AddItem(nil, 0, 1, false), 48, 0, true).
+			AddItem(nil, 1, 0, false), 64, 0, true).
 		AddItem(nil, 0, 1, false)
 	t.app.SetRoot(flex, true)
-	t.app.SetFocus(help)
+	t.app.SetFocus(help.focus)
 }
 
 // showKillConfirmModal asks the user to confirm before killing a session,
