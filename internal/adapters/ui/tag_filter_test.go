@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -97,4 +97,48 @@ func namesOf(ss []domain.Session) []string {
 		out = append(out, s.Name)
 	}
 	return out
+}
+
+func TestFilterByName(t *testing.T) {
+	sessions := []domain.Session{{Name: "api"}, {Name: "notes"}, {Name: "legacy"}}
+	for _, tc := range []struct {
+		query string
+		want  []string
+	}{
+		{"", []string{"api", "notes", "legacy"}}, // empty query = pass-through
+		{"api", []string{"api"}},
+		{"n", []string{"notes"}}, // subsequence match
+		{"zzz", []string{}},
+	} {
+		got := namesOf(filterByName(sessions, tc.query))
+		if !reflect.DeepEqual(got, tc.want) {
+			t.Errorf("filterByName(%q) = %v, want %v", tc.query, got, tc.want)
+		}
+	}
+}
+
+func TestApplyFilters(t *testing.T) {
+	sessions := []domain.Session{
+		{Name: "api", Tags: []string{"work"}},
+		{Name: "notes", Tags: []string{"personal"}},
+		{Name: "legacy", Tags: nil},
+	}
+	// tag only
+	got := namesOf(applyFilters(sessions, []string{"work"}, ""))
+	want := []string{"api"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("tag-only = %v, want %v", got, want)
+	}
+	// tag OR + name subsequence: tags {work,personal} keep api+notes; query "not" keeps notes
+	got = namesOf(applyFilters(sessions, []string{"work", "personal"}, "not"))
+	want = []string{"notes"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("tag+name = %v, want %v", got, want)
+	}
+	// no filters = pass-through (order preserved)
+	got = namesOf(applyFilters(sessions, nil, ""))
+	want = []string{"api", "notes", "legacy"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("no-filter = %v, want %v", got, want)
+	}
 }

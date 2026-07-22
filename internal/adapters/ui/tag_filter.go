@@ -5,7 +5,7 @@ Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
 
-    http://www.apache.org/licenses/LICENSE-2.0
+	http://www.apache.org/licenses/LICENSE-2.0
 
 Unless required by applicable law or agreed to in writing, software
 distributed under the License is distributed on an "AS IS" BASIS,
@@ -77,4 +77,29 @@ func formatTagItem(tag string, selected bool) string {
 		return "[" + colorGreen + "][x][-] " + tag
 	}
 	return "[ ] " + tag
+}
+
+// filterByName keeps sessions whose Name is a fuzzy match for query (reuses
+// fuzzyMatch). An empty query is a pass-through. Extracted from handleSearchInput
+// so the unified visibleSessions pipeline can compose tag + name filtering.
+func filterByName(sessions []domain.Session, query string) []domain.Session {
+	if query == "" {
+		return sessions
+	}
+	out := make([]domain.Session, 0, len(sessions))
+	for _, s := range sessions {
+		if fuzzyMatch(query, s.Name) {
+			out = append(out, s)
+		}
+	}
+	return out
+}
+
+// applyFilters is the ordered filter pipeline used by visibleSessions: tag
+// filter first (narrow by category), then name search (find within category).
+// Either stage is a pass-through when its input is empty.
+func applyFilters(sessions []domain.Session, tags []string, query string) []domain.Session {
+	out := filterByTags(sessions, tags)
+	out = filterByName(out, query)
+	return out
 }

@@ -128,18 +128,10 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	return e
 }
 
-func (t *tui) handleSearchInput(text string) {
-	if text == "" {
-		t.sessionList.UpdateSessions(t.allCache)
-		return
-	}
-	filtered := make([]domain.Session, 0, len(t.allCache))
-	for _, s := range t.allCache {
-		if fuzzyMatch(text, s.Name) {
-			filtered = append(filtered, s)
-		}
-	}
-	t.sessionList.UpdateSessions(filtered)
+func (t *tui) handleSearchInput(_ string) {
+	// The query is read fresh from the search bar inside visibleSessions, so the
+	// tag filter and name search always compose through one pipeline.
+	t.sessionList.UpdateSessions(t.visibleSessions())
 }
 
 func (t *tui) handleSelectionChange(s domain.Session) {
@@ -228,7 +220,7 @@ func (t *tui) syncDetails() {
 func (t *tui) applySortAndRender() {
 	sortSessionsForUI(t.allCache, t.sortMode, t.serve.LastAttached)
 	t.sessionList.SetSortTitle(t.sortMode.String())
-	t.sessionList.UpdateSessions(t.allCache)
+	t.sessionList.UpdateSessions(t.visibleSessions())
 }
 
 func (t *tui) actOnSelected(fn func(domain.Session)) {

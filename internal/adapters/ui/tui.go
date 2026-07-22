@@ -62,6 +62,10 @@ type tui struct {
 	// (empty = not inside tmux). It is stable after reading once — switching
 	// sessions necessarily exits the TUI.
 	currentSession string
+	// tagFilter holds the currently active tag filter (OR semantics). Empty/nil
+	// means no filter. It is pure in-memory view state — never persisted — so a
+	// fresh launch always starts unfiltered.
+	tagFilter []string
 }
 
 // NewTUI constructs the TUI. Sub-components are built in Run() via the
@@ -151,4 +155,21 @@ func (t *tui) loadInitialData() *tui {
 		t.sessionList.SelectByName(t.currentSession)
 	}
 	return t
+}
+
+// currentSearchQuery returns the search bar's text, or "" when the search bar
+// is not wired (e.g. in unit tests constructing a partial tui).
+func (t *tui) currentSearchQuery() string {
+	if t.searchBar == nil {
+		return ""
+	}
+	return t.searchBar.GetText()
+}
+
+// visibleSessions applies the active tag filter and the current search query to
+// the cached session list. It is the single filtering entry point: both the
+// sort/render path (applySortAndRender) and the search path (handleSearchInput)
+// render its result, so the two filters always compose consistently.
+func (t *tui) visibleSessions() []domain.Session {
+	return applyFilters(t.allCache, t.tagFilter, t.currentSearchQuery())
 }
