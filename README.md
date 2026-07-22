@@ -31,11 +31,13 @@ With lazytmux, you can list, search, sort, pin, tag, create, rename, kill, detac
 - 🔍 Fuzzy search by session name.
 - ⌨️ One‑keypress enter: `switch-client` inside tmux, `attach` outside (auto‑detected).
 - ↕️ Sort by name / created / activity / last‑attached.
+- 🏷️ Filter the list by tag (`f`, multi-select, OR‑matched).
 
 ### Workflow
 - 🧩 Details pane with a per-session window list.
 - 📋 Copy `tmux attach -t <name>` to the clipboard.
 - 🔄 Background refresh of session and window state.
+- ❓ In-app help (`?`) listing every key binding.
 
 ---
 
@@ -173,6 +175,7 @@ make build-all
 | `t`   | Edit tags (comma-separated)             |
 | `s`   | Cycle sort field                        |
 | `S`   | Cycle sort field (skip one)             |
+| `f`   | Filter sessions by tag                 |
 | `r`   | Refresh                                 |
 | `c`   | Copy `tmux attach -t <name>`            |
 | `Esc` | Blur search bar (keeps the query)       |
