@@ -116,6 +116,9 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	case 'f':
 		t.openTagFilter()
 		return nil
+	case '?':
+		t.openHelp()
+		return nil
 	}
 	switch e.Key() {
 	case tcell.KeyEnter:
@@ -321,6 +324,28 @@ func (t *tui) openTagFilter() {
 		OnCancel(t.closeModal)
 	t.app.SetRoot(form.Primitive(), true)
 	t.app.SetFocus(form)
+}
+
+// openHelp shows the key-binding reference. The content is derived from the
+// keyBindings single source, topped with the current sort + filter status.
+// ?, ESC, or q dismiss it.
+func (t *tui) openHelp() {
+	help := NewHelpModal(t.sortMode.String(), filterDescription(t.tagFilter))
+	help.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch {
+		case e.Key() == tcell.KeyESC, e.Rune() == '?', e.Rune() == 'q':
+			t.closeModal()
+			return nil
+		}
+		return e
+	})
+	flex := tview.NewFlex().AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(help, 0, 1, true).
+			AddItem(nil, 0, 1, false), 48, 0, true).
+		AddItem(nil, 0, 1, false)
+	t.app.SetRoot(flex, true)
 }
 
 // showKillConfirmModal asks the user to confirm before killing a session,

@@ -60,9 +60,11 @@ func defaultHints() string {
 		"[" + k + "]d[-] Detach  • " +
 		"[" + k + "]k[-] Kill  • " +
 		"[" + k + "]t[-] Tags  • " +
+		"[" + k + "]f[-] Filter  • " +
 		"[" + k + "]r[-] Refresh  • " +
 		"[" + k + "]p[-] Pin/Unpin  • " +
 		"[" + k + "]/[-] Search  • " +
+		"[" + k + "]?[-] Help  • " +
 		"[" + k + "]q[-] Quit"
 }
 
@@ -74,5 +76,6 @@ func emptyHints() string {
 		"[" + k + "]a[-] New  •  " +
 		"[" + k + "]r[-] Refresh  •  " +
 		"[" + k + "]/[-] Search  •  " +
+		"[" + k + "]?[-] Help  •  " +
 		"[" + k + "]q[-] Quit"
 }

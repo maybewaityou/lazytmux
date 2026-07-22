@@ -56,4 +56,11 @@ func TestDefaultHintsOmitsSortForWidth(t *testing.T) {
 			t.Errorf("defaultHints missing expected key %q: %q", want, got)
 		}
 	}
+	// New keys from the tag-filter/help feature must be advertised so they are
+	// discoverable without the README.
+	for _, want := range []string{"Filter", "Help"} {
+		if !strings.Contains(got, want) {
+			t.Errorf("defaultHints missing new key %q: %q", want, got)
+		}
+	}
 }
