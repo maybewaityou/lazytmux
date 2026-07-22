@@ -178,6 +178,7 @@ make build-all
 | `f`   | Filter sessions by tag                 |
 | `r`   | Refresh                                 |
 | `c`   | Copy `tmux attach -t <name>`            |
+| `?`   | Help (key bindings)                     |
 | `Esc` | Blur search bar (keeps the query)       |
 | `q`   | Quit                                    |
 
