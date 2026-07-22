@@ -154,3 +154,55 @@ func equalTags(a, b []string) bool {
 	}
 	return true
 }
+
+// TestVisibleSessionsAppliesSearchQuery pins the unified filter pipeline: the
+// sort path (applySortAndRender) now renders visibleSessions instead of allCache
+// directly, so a sort cycle must preserve the active search result. It also pins
+// that the tag filter and the name search compose (tag narrows first, then name).
+func TestVisibleSessionsAppliesSearchQuery(t *testing.T) {
+	// Query alone: allCache holds 3 sessions, only "api" fuzzy-matches "api".
+	search := NewSearchBar()
+	search.SetText("api")
+	tt := &tui{
+		allCache: []domain.Session{
+			{Name: "api"},
+			{Name: "notes"},
+			{Name: "legacy"},
+		},
+		searchBar: search,
+	}
+
+	got := tt.visibleSessions()
+	if len(got) != 1 || got[0].Name != "api" {
+		t.Fatalf("visibleSessions(query=\"api\") = %v, want [api]", sessionNames(got))
+	}
+
+	// Tag + name composition: the tag filter narrows to "work" sessions (dropping
+	// "legacy"), then the name query narrows within that set (dropping "notes") —
+	// order is preserved by both stages, so the result is deterministic.
+	tagged := &tui{
+		allCache: []domain.Session{
+			{Name: "api", Tags: []string{"work"}},
+			{Name: "api-server", Tags: []string{"work"}},
+			{Name: "notes", Tags: []string{"work"}},
+			{Name: "legacy", Tags: []string{"personal"}},
+		},
+		tagFilter: []string{"work"},
+		searchBar: search, // still holds query "api"
+	}
+
+	got = tagged.visibleSessions()
+	if len(got) != 2 || got[0].Name != "api" || got[1].Name != "api-server" {
+		t.Fatalf("visibleSessions(tag=\"work\", query=\"api\") = %v, want [api api-server]", sessionNames(got))
+	}
+}
+
+// sessionNames returns the Name field of each session, in order, for terse test
+// assertions and failure messages.
+func sessionNames(ss []domain.Session) []string {
+	out := make([]string, len(ss))
+	for i, s := range ss {
+		out[i] = s.Name
+	}
+	return out
+}
