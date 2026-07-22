@@ -67,4 +67,4 @@ Semantic: `type(scope): subject`. Types: `feat`, `fix`, `improve`, `refactor`, `
 
 ## Local-only files (gitignored — not project conventions)
 
-`.superpowers/`, `scripts/deploy.sh`, and `docs/homebrew-release.md` exist on disk but are gitignored personal tooling/notes — do not treat them as authoritative structure. The tracked design doc is `docs/superpowers/specs/2026-07-20-lazytmux-design.md`.
+`.superpowers/`, `docs/superpowers/`, `scripts/deploy.sh`, and `docs/homebrew-release.md` exist on disk but are gitignored personal tooling/notes — do not treat them as authoritative structure.

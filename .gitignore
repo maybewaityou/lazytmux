@@ -8,8 +8,9 @@
 *.out
 coverage.txt
 
-# local tooling scratch
+# superpowers workflow output (local, not tracked)
 .superpowers/
+/docs/superpowers/
 
 # local deploy script (personal, not tracked)
 /scripts/deploy.sh
