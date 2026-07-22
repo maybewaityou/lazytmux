@@ -113,6 +113,9 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 			})
 		})
 		return nil
+	case 'f':
+		t.openTagFilter()
+		return nil
 	}
 	switch e.Key() {
 	case tcell.KeyEnter:
@@ -295,6 +298,29 @@ func (t *tui) refreshStatusBarHints() {
 		return
 	}
 	t.statusBar.ResetHints()
+}
+
+// openTagFilter opens the multi-select tag filter modal. Candidates are the
+// union of every loaded session's tags; the currently active filter is
+// pre-selected. Applying writes the selection to tagFilter (in-memory only)
+// and re-runs the render pipeline so the list and its title update together.
+// When there are no tags at all, we surface a transient hint instead of an
+// empty modal.
+func (t *tui) openTagFilter() {
+	candidates := collectTags(t.allCache)
+	if len(candidates) == 0 {
+		t.setStatusTemporary("[" + colorYellow + "]No tags yet — tag a session with t[-]")
+		return
+	}
+	form := NewTagFilterForm(candidates, t.tagFilter).
+		OnApply(func(tags []string) {
+			t.tagFilter = tags
+			t.closeModal()
+			t.applySortAndRender()
+		}).
+		OnCancel(t.closeModal)
+	t.app.SetRoot(form.Primitive(), true)
+	t.app.SetFocus(form)
 }
 
 // showKillConfirmModal asks the user to confirm before killing a session,

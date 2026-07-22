@@ -19,6 +19,9 @@ import (
 	"sort"
 	"strings"
 
+	"github.com/gdamore/tcell/v2"
+	"github.com/rivo/tview"
+
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
 )
 
@@ -102,4 +105,105 @@ func applyFilters(sessions []domain.Session, tags []string, query string) []doma
 	out := filterByTags(sessions, tags)
 	out = filterByName(out, query)
 	return out
+}
+
+// TagFilterForm is a multi-select modal listing every known tag with a
+// checkbox. Space toggles the focused tag, Enter applies the selection, ESC
+// cancels (keeping the prior filter). It mirrors the existing modal language
+// (centered, Tokyo Night) while adding checkbox navigation on top of tview.List.
+type TagFilterForm struct {
+	*tview.List
+	candidates []string
+	selected   map[string]bool
+	onApply    func([]string)
+	onCancel   func()
+}
+
+// NewTagFilterForm builds the modal. candidates is the sorted tag union;
+// initial pre-selects the currently active filter so reopening the modal shows
+// the live state.
+func NewTagFilterForm(candidates, initial []string) *TagFilterForm {
+	f := &TagFilterForm{
+		List:       tview.NewList(),
+		candidates: candidates,
+		selected:   make(map[string]bool, len(initial)),
+	}
+	for _, t := range initial {
+		f.selected[t] = true
+	}
+	f.build()
+	return f
+}
+
+func (f *TagFilterForm) build() {
+	f.ShowSecondaryText(false)
+	f.SetBorder(true).
+		SetTitle(" Tag filter ").
+		SetTitleAlign(tview.AlignCenter).
+		SetBorderColor(tcell.GetColor(colorBorder)).
+		SetTitleColor(tcell.GetColor(colorTitle))
+	f.SetSelectedBackgroundColor(tcell.GetColor(colorSelected)).
+		SetSelectedTextColor(tcell.GetColor(colorPrimary)).
+		SetHighlightFullLine(true)
+
+	for _, tag := range f.candidates {
+		f.AddItem(f.formatRow(tag), "", 0, nil)
+	}
+
+	f.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
+		switch e.Key() {
+		case tcell.KeyESC:
+			if f.onCancel != nil {
+				f.onCancel()
+			}
+			return nil
+		case tcell.KeyEnter:
+			if f.onApply != nil {
+				f.onApply(f.selection())
+			}
+			return nil
+		}
+		// Space arrives as KeyRune with rune ' ' (tcell represents printable
+		// chars as KeyRune, and tcell.KeySpace is not defined in this version).
+		// Toggle the focused row's checkbox.
+		if e.Rune() == ' ' {
+			idx := f.GetCurrentItem()
+			if idx >= 0 && idx < len(f.candidates) {
+				tag := f.candidates[idx]
+				f.selected[tag] = !f.selected[tag]
+				f.SetItemText(idx, f.formatRow(tag), "")
+			}
+			return nil
+		}
+		return e
+	})
+}
+
+// formatRow renders a candidate's checkbox row from its current selection state.
+func (f *TagFilterForm) formatRow(tag string) string {
+	return formatTagItem(tag, f.selected[tag])
+}
+
+// selection returns the active tags in candidate order (stable, reproducible).
+func (f *TagFilterForm) selection() []string {
+	out := make([]string, 0, len(f.candidates))
+	for _, tag := range f.candidates {
+		if f.selected[tag] {
+			out = append(out, tag)
+		}
+	}
+	return out
+}
+
+func (f *TagFilterForm) OnApply(fn func([]string)) *TagFilterForm { f.onApply = fn; return f }
+func (f *TagFilterForm) OnCancel(fn func()) *TagFilterForm        { f.onCancel = fn; return f }
+
+// Primitive wraps the list in a centered, fixed-width flex like SessionForm.
+func (f *TagFilterForm) Primitive() tview.Primitive {
+	return tview.NewFlex().AddItem(nil, 0, 1, false).
+		AddItem(tview.NewFlex().SetDirection(tview.FlexRow).
+			AddItem(nil, 0, 1, false).
+			AddItem(f, 0, 1, true).
+			AddItem(nil, 0, 1, false), 40, 0, true).
+		AddItem(nil, 0, 1, false)
 }
