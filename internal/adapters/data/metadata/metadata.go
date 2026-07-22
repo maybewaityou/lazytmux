@@ -73,6 +73,50 @@ func (s *Store) load() error {
 	return json.Unmarshal(b, &s.data)
 }
 
+// reloadLocked refreshes the in-memory snapshot from the latest on-disk state.
+// It must be called with the write lock held. A missing or empty file leaves the
+// snapshot untouched (the maps are already initialized, and between mutations the
+// snapshot already matches the last successful save).
+//
+// The JSON is decoded into a fresh fileModel rather than &s.data because
+// json.Unmarshal *merges* into existing maps — it never drops keys absent from
+// the payload — so reusing s.data would leave stale entries behind.
+func (s *Store) reloadLocked() error {
+	b, err := os.ReadFile(s.path)
+	if os.IsNotExist(err) || len(b) == 0 {
+		return nil
+	}
+	if err != nil {
+		return err
+	}
+	fresh := fileModel{
+		Pins:         map[string]bool{},
+		Tags:         map[string][]string{},
+		LastAttached: map[string]int64{},
+	}
+	if err := json.Unmarshal(b, &fresh); err != nil {
+		return err
+	}
+	s.data = fresh
+	return nil
+}
+
+// mutate re-reads the freshest on-disk state under the write lock, applies fn to
+// it, and persists atomically. Re-reading before every write is what stops one
+// lazytmux instance from silently clobbering another's concurrent change (common
+// inside tmux, where several instances often share the file): each mutation
+// becomes a read-modify-write against the latest file instead of a blind
+// overwrite of the snapshot captured at startup.
+func (s *Store) mutate(fn func(d *fileModel)) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if err := s.reloadLocked(); err != nil {
+		return err
+	}
+	fn(&s.data)
+	return s.save()
+}
+
 // save backs up the original file the first time, then writes atomically.
 func (s *Store) save() error {
 	if err := s.backupOriginalOnce(); err != nil {
@@ -111,14 +155,13 @@ func (s *Store) IsPinned(name string) bool {
 }
 
 func (s *Store) SetPinned(name string, pinned bool) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if pinned {
-		s.data.Pins[name] = true
-	} else {
-		delete(s.data.Pins, name)
-	}
-	return s.save()
+	return s.mutate(func(d *fileModel) {
+		if pinned {
+			d.Pins[name] = true
+		} else {
+			delete(d.Pins, name)
+		}
+	})
 }
 
 func (s *Store) Tags(name string) []string {
@@ -131,21 +174,19 @@ func (s *Store) Tags(name string) []string {
 }
 
 func (s *Store) SetTags(name string, tags []string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	if len(tags) == 0 {
-		delete(s.data.Tags, name)
-	} else {
-		s.data.Tags[name] = tags
-	}
-	return s.save()
+	return s.mutate(func(d *fileModel) {
+		if len(tags) == 0 {
+			delete(d.Tags, name)
+		} else {
+			d.Tags[name] = tags
+		}
+	})
 }
 
 func (s *Store) SetLastAttached(name string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	s.data.LastAttached[name] = time.Now().Unix()
-	return s.save()
+	return s.mutate(func(d *fileModel) {
+		d.LastAttached[name] = time.Now().Unix()
+	})
 }
 
 // Rename moves all metadata (pin/tags/lastAttached) from oldName to newName
@@ -153,12 +194,11 @@ func (s *Store) SetLastAttached(name string) error {
 // (overwriting any stale entry at newName), then oldName is removed.
 // A single atomic save writes the result.
 func (s *Store) Rename(oldName, newName string) error {
-	s.mu.Lock()
-	defer s.mu.Unlock()
-	relocate(s.data.Pins, oldName, newName)
-	relocate(s.data.Tags, oldName, newName)
-	relocate(s.data.LastAttached, oldName, newName)
-	return s.save()
+	return s.mutate(func(d *fileModel) {
+		relocate(d.Pins, oldName, newName)
+		relocate(d.Tags, oldName, newName)
+		relocate(d.LastAttached, oldName, newName)
+	})
 }
 
 // relocate moves a single map entry with mv semantics: the target is cleared

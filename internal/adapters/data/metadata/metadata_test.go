@@ -150,6 +150,41 @@ func TestRenameOverwritesTarget(t *testing.T) {
 	}
 }
 
+// TestConcurrentInstancesDontClobber reproduces the lost-update bug that bites
+// when several lazytmux processes run against the same metadata file — common
+// inside tmux, where one instance is often left open in a pane while the user
+// edits metadata from a second instance elsewhere.
+//
+// Store caches the whole file in memory at startup and blind-overwrites it on
+// every mutation. So a stale instance (s1) that later writes any field reverts
+// a concurrent instance's (s2) earlier change. The fix is to re-read on-disk
+// state before each mutation so one instance never silently clobbers another.
+func TestConcurrentInstancesDontClobber(t *testing.T) {
+	path := filepath.Join(t.TempDir(), "metadata.json")
+	s1, _ := NewStore(path) // loads empty
+	s2, _ := NewStore(path) // loads empty — both snapshots are now frozen
+
+	// s2 edits a tag and persists it (the user's "modify tag" action).
+	if err := s2.SetTags("X", []string{"new"}); err != nil {
+		t.Fatalf("s2.SetTags: %v", err)
+	}
+
+	// s1, still holding its startup snapshot, later writes an unrelated field
+	// (e.g. SetLastAttached fired by EnterSession).
+	if err := s1.SetLastAttached("Y"); err != nil {
+		t.Fatalf("s1.SetLastAttached: %v", err)
+	}
+
+	// s2's tag change must survive s1's stale write.
+	s3, err := NewStore(path) // re-read from disk
+	if err != nil {
+		t.Fatalf("reload: %v", err)
+	}
+	if got := s3.Tags("X"); len(got) != 1 || got[0] != "new" {
+		t.Fatalf("s2's tag was clobbered by s1's stale write: got %v", got)
+	}
+}
+
 func TestSetTagsEmptyDeletes(t *testing.T) {
 	s := newTestStore(t)
 	_ = s.SetTags("foo", []string{"work"})
