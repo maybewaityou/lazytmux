@@ -386,15 +386,18 @@ func (t *tui) openMultiFieldSessionForm(title, initName, initTags, initNote stri
 	t.app.SetFocus(form.Form())
 }
 
-// editNote opens a single-field modal to edit the selected session's note. An
-// empty submit clears the note (no confirm modal): clearing freeform text is
-// trivially reversible, so the confirm gate that tags get would be ceremony, not
-// safety. This is why it does not reuse openForm — openForm's allowEmpty path
-// assumes the empty case takes over the root to show a confirm modal (tags-only),
-// which note never does. NewSessionForm calls onSubmit on every Enter, so wiring
-// it directly gives the always-submit-and-close semantics note needs.
+// editNote opens a multi-line text-area modal to edit the selected session's
+// note — the same *tview.TextArea the Note field of the New/Edit form uses, so
+// editing feels identical standalone and inside the form. Enter saves;
+// Shift+Enter inserts a newline; Esc cancels. An empty submit clears the note
+// (no confirm modal): clearing freeform text is trivially reversible, so the
+// confirm gate that tags get would be ceremony, not safety. This is why it
+// does not reuse openForm — openForm's allowEmpty path assumes the empty case
+// takes over the root to show a confirm modal (tags-only), which note never
+// does. NoteForm calls onSubmit on every plain Enter, giving the
+// always-submit-and-close semantics note needs.
 func (t *tui) editNote(s domain.Session) {
-	form := NewSessionForm("Note", "freeform note").
+	form := NewNoteForm("Note", "freeform note").
 		InitialValue(s.Note).
 		OnSubmit(func(input string) {
 			note := strings.TrimSpace(input)
@@ -407,7 +410,7 @@ func (t *tui) editNote(s domain.Session) {
 		}).
 		OnCancel(t.closeForm)
 	t.app.SetRoot(form.Primitive(), true)
-	t.app.SetFocus(form.Input())
+	t.app.SetFocus(form.Area())
 }
 
 // refreshStatusMessage builds the transient footer toast shown after pressing

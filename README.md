@@ -199,7 +199,7 @@ make build-all
 | `k`   | Kill session                            |
 | `p`   | Pin / unpin                             |
 | `t`   | Edit tags (comma-separated)             |
-| `n`   | Edit note (freeform)                    |
+| `n`   | Edit note (multi-line)                  |
 | `s`   | Cycle sort field                        |
 | `S`   | Cycle sort field (skip one)             |
 | `f`   | Filter sessions by tag                 |
@@ -218,6 +218,8 @@ make build-all
 | `Enter`       | Submit (save)       |
 | `Shift+Enter` | Newline (in Note)   |
 | `Esc`         | Cancel              |
+
+The same keys apply when editing a note directly with `n`: Shift+Enter inserts a newline, Enter saves.
 
 Tip: the status bar at the bottom shows the result of your last action.
 
