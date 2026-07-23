@@ -37,7 +37,7 @@ With lazytmux, you can list, search, sort, pin, tag, create, rename, kill, detac
 - 🧩 Details pane with a per-session window list.
 - 📋 Copy `tmux attach -t <name>` to the clipboard.
 - 🔄 Background refresh of session and window state.
-- ❓ In-app help (`?`) listing every key binding.
+- ❓ In-app help (`?`) — every key binding in a two-column, grouped panel.
 
 ---
 
