@@ -84,6 +84,26 @@ func NewMultiFieldSessionForm(title string) *MultiFieldSessionForm {
 	f.form.AddInputField("Name", "", 0, nil, nil).
 		AddInputField("Tags", "", 0, nil, nil).
 		AddTextArea("Note", "", 0, noteVisibleRows, 0, nil)
+	// Placeholders mirror the single-field forms so a field reads identically
+	// whether it is edited here or standalone: Tags = "comma-separated tags"
+	// (the Tags-only form), Note = "freeform note" (the Note-only form).
+	// AddInputField/AddTextArea take no placeholder, so set it on the underlying
+	// widgets after adding them. The two widget types expose different
+	// placeholder-color APIs: InputField takes a single text color, TextArea
+	// takes a full style (background + foreground); both use the muted
+	// colorSecondary so the hint recedes behind real input (colorPrimary).
+	if field, ok := f.form.GetFormItem(mfFieldName).(*tview.InputField); ok {
+		field.SetPlaceholder("session name").
+			SetPlaceholderTextColor(tcell.GetColor(colorSecondary))
+	}
+	if field, ok := f.form.GetFormItem(mfFieldTags).(*tview.InputField); ok {
+		field.SetPlaceholder("comma-separated tags").
+			SetPlaceholderTextColor(tcell.GetColor(colorSecondary))
+	}
+	if area, ok := f.form.GetFormItem(mfFieldNote).(*tview.TextArea); ok {
+		area.SetPlaceholder("freeform note").
+			SetPlaceholderStyle(tcell.StyleDefault.Background(tcell.ColorDefault).Foreground(tcell.GetColor(colorSecondary)))
+	}
 	f.hint.SetText("[" + colorSecondary + "]↑↓(switch field) · Enter(save) · Shift+Enter(newline in Note) · Esc(cancel)[-]")
 
 	// Enter submits from any field — the Note text area never sees a plain Enter

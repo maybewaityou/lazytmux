@@ -105,6 +105,33 @@ func screenContains(screen tcell.SimulationScreen, needle string) bool {
 	return strings.Contains(b.String(), needle)
 }
 
+// TestMultiFieldSessionFormPlaceholders pins that the three empty fields each
+// show a muted placeholder, mirroring the single-field forms so a field reads
+// identically whether it is edited here or standalone (Tags = "comma-separated
+// tags", Note = "freeform note"). Like TestMultiFieldFormNoteFocusKeepsNameVisible
+// it renders the form to a simulation screen and checks each hint is on screen —
+// tview paints a placeholder only while the field is empty, so this also guards
+// against a regression that sets text instead of a placeholder.
+func TestMultiFieldSessionFormPlaceholders(t *testing.T) {
+	f := NewMultiFieldSessionForm("New session")
+	form := f.Form()
+	form.SetRect(0, 0, 62, modalColumnHeight-1)
+
+	screen := tcell.NewSimulationScreen("UTF-8")
+	if err := screen.Init(); err != nil {
+		t.Fatalf("screen init: %v", err)
+	}
+	defer screen.Fini()
+	screen.SetSize(80, 40)
+	form.Draw(screen)
+
+	for _, want := range []string{"session name", "comma-separated tags", "freeform note"} {
+		if !screenContains(screen, want) {
+			t.Errorf("empty-field placeholder %q is not rendered", want)
+		}
+	}
+}
+
 // focusFormItem sets hasFocus on the i-th item so GetFocusedItemIndex reports
 // it. This mirrors what tview.Form.Draw does to the focused item at render
 // time; SetFocus alone does not focus the item when its index is 0 and nothing
