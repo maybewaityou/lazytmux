@@ -17,11 +17,13 @@ package ui
 import (
 	"strings"
 	"testing"
+
+	"github.com/rivo/tview"
 )
 
 // TestHelpColumnsRendersStatusAndGroups verifies the help content shows the
 // current sort + filter status line plus every key/action/group from the
-// single-source table, spread across the two columns.
+// single-source table, in the scrollable two-column body.
 func TestHelpColumnsRendersStatusAndGroups(t *testing.T) {
 	cols := renderHelpColumns("Activity ↓", "work, personal")
 	got := strings.Join(cols, "\n")
@@ -58,34 +60,20 @@ func TestHelpColumnsOmitFilterWhenEmpty(t *testing.T) {
 	}
 }
 
-// TestHelpColumnsSplitsAcrossTwoColumns verifies both columns carry content.
-func TestHelpColumnsSplitsAcrossTwoColumns(t *testing.T) {
+// TestRenderHelpColumnsReturnsStatusAndBody verifies the layout now produces two
+// regions — a status line and the scrollable body — rather than separate left
+// and right column strings. The body is the single text block both columns are
+// pre-rendered into, which is what lets it scroll as one.
+func TestRenderHelpColumnsReturnsStatusAndBody(t *testing.T) {
 	cols := renderHelpColumns("Name ↑", "")
-	if len(cols) != 3 {
-		t.Fatalf("renderHelpColumns returned %d regions, want 3 (status, left, right)", len(cols))
+	if len(cols) != 2 {
+		t.Fatalf("renderHelpColumns returned %d regions, want 2 (status, body)", len(cols))
+	}
+	if cols[0] == "" {
+		t.Errorf("status line should not be empty")
 	}
 	if cols[1] == "" {
-		t.Errorf("left column should not be empty")
-	}
-	if cols[2] == "" {
-		t.Errorf("right column should not be empty")
-	}
-}
-
-// TestHelpColumnsFirstGroupSoloOnTopRow verifies the layout rule: the first
-// group (Navigate) takes the top row alone — it appears in the left column and
-// NOT in the right column, whose top is padded blank for that row.
-func TestHelpColumnsFirstGroupSoloOnTopRow(t *testing.T) {
-	if len(keyBindings) == 0 {
-		t.Fatal("keyBindings is empty")
-	}
-	cols := renderHelpColumns("Name ↑", "")
-	first := keyBindings[0].Group
-	if !strings.Contains(cols[1], first) {
-		t.Errorf("left column should contain first group %q: %q", first, cols[1])
-	}
-	if strings.Contains(cols[2], first) {
-		t.Errorf("right column should not contain first group %q (top row is solo): %q", first, cols[2])
+		t.Errorf("body should not be empty")
 	}
 }
 
@@ -105,16 +93,42 @@ func TestPairHelpGroups(t *testing.T) {
 	}
 }
 
-// TestBuildHelpColumnsAligned verifies both columns end up with the same number
-// of rendered lines. Together with per-row padding to max(left, right) height,
-// that is what keeps group headers aligned across the two columns.
-func TestBuildHelpColumnsAligned(t *testing.T) {
-	groups := collectHelpGroups()
-	rows := pairHelpGroups(len(groups))
-	left, right := buildHelpColumns(groups, rows)
-	leftLines := strings.Count(left, "\n") + 1
-	rightLines := strings.Count(right, "\n") + 1
-	if leftLines != rightLines {
-		t.Errorf("columns misaligned: left %d lines, right %d lines", leftLines, rightLines)
+// TestBuildHelpBodyNavigateRowHasEmptyRightColumn pins the layout rule that the
+// first row (Navigate) is solo: its lines never reach the right column.
+// Concretely, every Navigate-row line's screen width stays within the shared
+// left-column width, so nothing is drawn in the right column for that row — the
+// requested "Navigate second group empty".
+func TestBuildHelpBodyNavigateRowHasEmptyRightColumn(t *testing.T) {
+	if len(keyBindings) == 0 {
+		t.Fatal("keyBindings is empty")
 	}
+	groups := collectHelpGroups()
+	w := leftColumnWidth(groups)
+	body := buildHelpBody(groups, pairHelpGroups(len(groups)))
+
+	for _, line := range strings.Split(body, "\n") {
+		if line == "" {
+			break // blank line ends the Navigate row
+		}
+		if got := tview.TaggedStringWidth(line); got > w {
+			t.Errorf("Navigate row line reaches the right column (width %d > %d): %q", got, w, line)
+		}
+	}
+}
+
+// TestBuildHelpBodyPairsTwoColumnsPerRow pins that the paired rows really do
+// carry both a left and a right group: at least one line is wide enough to span
+// past the gutter into the right column (left-column width + gutter), proving
+// the two columns are laid out side by side in the one text block.
+func TestBuildHelpBodyPairsTwoColumnsPerRow(t *testing.T) {
+	groups := collectHelpGroups()
+	w := leftColumnWidth(groups)
+	body := buildHelpBody(groups, pairHelpGroups(len(groups)))
+
+	for _, line := range strings.Split(body, "\n") {
+		if tview.TaggedStringWidth(line) > w+helpGutter {
+			return // found a line that spans into the right column
+		}
+	}
+	t.Errorf("no line spans into the right column; the two-column layout is missing")
 }
