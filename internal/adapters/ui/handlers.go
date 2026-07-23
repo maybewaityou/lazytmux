@@ -223,31 +223,35 @@ func (t *tui) focusList() {
 	t.app.SetFocus(t.sessionList)
 }
 
-// listHasFocus reports whether focus is on the session list. Keyboard focus
-// lands on the *SessionList wrapper (we call SetFocus(t.sessionList)), but a
-// mouse click lands on the embedded *tview.List: its MouseHandler calls setFocus
-// on the embedded widget, not the wrapper. Both objects must count — without
-// this, the arrow keys would work only after keyboard focus and silently fail
-// after a mouse click.
+// listHasFocus reports whether the session list currently holds focus.
+//
+// Focus is queried via the widget's own HasFocus() rather than by comparing the
+// *tview.Application's focused-primitive pointer. Pointer comparison is fragile
+// across tview's focus layers: a keyboard SetFocus lands on the *SessionList
+// wrapper, a mouse click lands on the embedded *tview.List, and — as of tview
+// v0.42.0 — some widgets delegate mouse focus to an inner, unexported widget
+// (InputField does this via its *TextArea). Enumerating every layer's pointer is
+// brittle and, for the unexported ones, impossible; HasFocus recurses through
+// them uniformly and works headless (no live *tview.Application).
 func (t *tui) listHasFocus() bool {
-	f := t.app.GetFocus()
-	return f == t.sessionList || f == t.sessionList.List
+	return t.sessionList.HasFocus()
 }
 
-// detailsHasFocus reports whether focus is on the details pane. Same
-// wrapper-vs-embedded-widget reasoning as listHasFocus: a click focuses the
-// embedded *tview.TextView, the arrow key focuses the *SessionDetails wrapper.
+// detailsHasFocus reports whether the details pane currently holds focus. Same
+// HasFocus-based reasoning as listHasFocus.
 func (t *tui) detailsHasFocus() bool {
-	f := t.app.GetFocus()
-	return f == t.details || f == t.details.TextView
+	return t.details.HasFocus()
 }
 
-// searchBarHasFocus reports whether focus is on the search bar, accepting both
-// the *SearchBar wrapper (keyboard '/') and the embedded *tview.InputField
-// (mouse click). See listHasFocus for why both must count.
+// searchBarHasFocus reports whether the search bar currently holds focus. This
+// is the fix for the bug where clicking the search bar left it reporting
+// "unfocused": tview v0.42.0's InputField delegates mouse focus to an internal
+// *TextArea, so the focused primitive was neither the *SearchBar wrapper nor the
+// embedded *tview.InputField — the old pointer comparison matched neither, and
+// the TextArea field is unexported so it could not be named anyway. HasFocus
+// recurses through that delegation. See listHasFocus for the full reasoning.
 func (t *tui) searchBarHasFocus() bool {
-	f := t.app.GetFocus()
-	return f == t.searchBar || f == t.searchBar.InputField
+	return t.searchBar.HasFocus()
 }
 
 // refresh reloads sessions from tmux, re-renders the list, and returns the

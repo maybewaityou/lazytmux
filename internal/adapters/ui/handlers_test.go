@@ -206,3 +206,54 @@ func sessionNames(ss []domain.Session) []string {
 	}
 	return out
 }
+
+// TestFocusQueriesUseWidgetHasFocus locks the contract that the pane-focus
+// queries (listHasFocus/detailsHasFocus/searchBarHasFocus) delegate to the
+// widget's own HasFocus() rather than comparing the *tview.Application's
+// focused-primitive pointer.
+//
+// Pointer comparison is fragile across tview's focus layers: a keyboard
+// SetFocus lands on the wrapper struct, a mouse click lands on the embedded
+// tview widget, and — as of tview v0.42.0 — InputField further delegates mouse
+// focus to an internal, unexported *TextArea. Clicking the search bar put focus
+// on that inner TextArea, which matched neither the SearchBar wrapper nor the
+// embedded InputField pointer, so the old searchBarHasFocus wrongly returned
+// false (the search bar "didn't get focus" after a click). HasFocus recurses
+// through every layer uniformly and needs no live *tview.Application, so the
+// query works headless; the old implementation dereferenced t.app (nil here)
+// and panicked, which is exactly the coupling this test guards against.
+func TestFocusQueriesUseWidgetHasFocus(t *testing.T) {
+	tt := &tui{
+		sessionList: NewSessionList(),
+		details:     NewSessionDetails(),
+		searchBar:   NewSearchBar(),
+		// app intentionally nil: a focus query must not depend on it.
+	}
+
+	if tt.listHasFocus() || tt.detailsHasFocus() || tt.searchBarHasFocus() {
+		t.Fatal("no pane should report focus before any Focus() call")
+	}
+
+	cases := []struct {
+		name  string
+		focus func()
+		blur  func()
+		check func() bool
+	}{
+		{"list", func() { tt.sessionList.Focus(nil) }, func() { tt.sessionList.Blur() }, tt.listHasFocus},
+		{"details", func() { tt.details.Focus(nil) }, func() { tt.details.Blur() }, tt.detailsHasFocus},
+		{"search", func() { tt.searchBar.Focus(nil) }, func() { tt.searchBar.Blur() }, tt.searchBarHasFocus},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			c.focus()
+			if !c.check() {
+				t.Errorf("want %s focused after Focus()", c.name)
+			}
+			c.blur()
+			if c.check() {
+				t.Errorf("want %s unfocused after Blur()", c.name)
+			}
+		})
+	}
+}
