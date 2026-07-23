@@ -16,6 +16,7 @@ package ui
 
 import (
 	"strings"
+	"sync"
 	"testing"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
@@ -255,5 +256,96 @@ func TestFocusQueriesUseWidgetHasFocus(t *testing.T) {
 				t.Errorf("want %s unfocused after Blur()", c.name)
 			}
 		})
+	}
+}
+
+// TestSearchInputClearsDetailsWhenNoMatch reproduces the bug where typing a search
+// query that matches nothing left the details pane pinned to the previously shown
+// session instead of clearing to the empty state.
+//
+// Root cause: handleSearchInput re-rendered the list via UpdateSessions but never
+// re-synced the details pane, and tview's List.Clear()+SetCurrentItem(0) never
+// fires SetChangedFunc — so handleSelectionChange was never invoked and the pane
+// kept showing whatever was selected before the filter changed. With no matches
+// the list empties and the pane would keep showing the last match indefinitely.
+func TestSearchInputClearsDetailsWhenNoMatch(t *testing.T) {
+	details := NewSessionDetails()
+	list := NewSessionList()
+	search := NewSearchBar()
+	tt := &tui{
+		details:     details,
+		sessionList: list,
+		searchBar:   search,
+		allCache: []domain.Session{
+			{Name: "alpha"},
+			{Name: "beta"},
+		},
+	}
+
+	// Prime: the list holds both sessions and the details pane shows the first
+	// one, exactly as it would after startup with the cursor resting on item 0.
+	list.UpdateSessions(tt.visibleSessions())
+	tt.details.Render(domain.Session{Name: "alpha"})
+	if got := details.GetText(true); !strings.Contains(got, "alpha") {
+		t.Fatalf("precondition: details should show alpha, got %q", got)
+	}
+
+	// Type a query that matches nothing. The list empties; the details pane must
+	// clear to the "No sessions" placeholder instead of leaving alpha on screen.
+	search.SetText("zzz-no-match")
+	tt.handleSearchInput("zzz-no-match")
+
+	if got := details.GetText(true); strings.Contains(got, "alpha") {
+		t.Errorf("details should be cleared when the search matches nothing, still shows alpha: %q", got)
+	}
+	if !strings.Contains(details.GetText(true), "No sessions") {
+		t.Errorf("details should show the empty placeholder when the search matches nothing, got %q", details.GetText(true))
+	}
+}
+
+// TestSearchInputUpdatesDetailsToFirstMatch locks the other half of the fix: when
+// the search still matches something, the details pane must follow the list onto
+// the (new) first match rather than staying on the pre-search selection.
+func TestSearchInputUpdatesDetailsToFirstMatch(t *testing.T) {
+	details := NewSessionDetails()
+	list := NewSessionList()
+	search := NewSearchBar()
+	// loadWindows is invoked from a goroutine in handleSelectionChange; done lets
+	// the test wait until that goroutine has finished its async render. The Done
+	// must fire after the goroutine's last write to shared state — which is the
+	// details render inside the queueDraw callback, not LoadWindows itself — so it
+	// lives inside the injected queueDraw, after f() applies the render.
+	var done sync.WaitGroup
+	done.Add(1)
+	tt := &tui{
+		details:     details,
+		sessionList: list,
+		searchBar:   search,
+		serve:       &staleTestServe{loadWindows: func(*domain.Session) error { return nil }},
+		queueDraw: func(f func()) {
+			f()
+			done.Done()
+		},
+		allCache: []domain.Session{
+			{Name: "alpha"},
+			{Name: "beta"},
+		},
+	}
+
+	// Prime: details shows alpha (the item at index 0 before the search).
+	list.UpdateSessions(tt.visibleSessions())
+	tt.details.Render(domain.Session{Name: "alpha"})
+
+	// Narrow the query so "beta" becomes the only — and therefore first — match.
+	search.SetText("beta")
+	tt.handleSearchInput("beta")
+	done.Wait()
+
+	got := details.GetText(true)
+	if !strings.Contains(got, "beta") {
+		t.Errorf("details should follow the list onto the first match 'beta', got %q", got)
+	}
+	if strings.Contains(got, "alpha") {
+		t.Errorf("details should no longer show the pre-search selection 'alpha', got %q", got)
 	}
 }

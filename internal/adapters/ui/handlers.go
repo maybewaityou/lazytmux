@@ -171,8 +171,10 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 
 func (t *tui) handleSearchInput(_ string) {
 	// The query is read fresh from the search bar inside visibleSessions, so the
-	// tag filter and name search always compose through one pipeline.
-	t.sessionList.UpdateSessions(t.visibleSessions())
+	// tag filter and name search always compose through one pipeline. Routed
+	// through renderVisibleList so the details pane re-syncs to the filtered
+	// list — see renderVisibleList for why the sync cannot rely on SetChangedFunc.
+	t.renderVisibleList()
 }
 
 func (t *tui) handleSelectionChange(s domain.Session) {
@@ -304,11 +306,33 @@ func (t *tui) syncDetails() {
 	t.details.RenderEmpty("No sessions")
 }
 
+// renderVisibleList re-renders the session list from the filtered pipeline and
+// re-syncs the details pane to the resulting selection. It is the single entry
+// point that every "visible set changed" path — search input, sort cycle, tag
+// filter — must go through.
+//
+// The sync cannot be left to tview: UpdateSessions clears the list and resets the
+// cursor to item 0, but List.Clear()+SetCurrentItem(0) never fires SetChangedFunc,
+// so handleSelectionChange is never invoked and the details pane stays pinned to
+// whatever was selected before the filter changed. When the filter matches
+// nothing the list empties and the pane would keep showing the last match
+// indefinitely (the reported bug). syncDetails clears (or re-points) the pane to
+// match the new list state.
+//
+// refresh() runs this via applySortAndRender and then re-syncs once more after
+// SelectByName restores the saved cursor; the two passes are intentionally
+// redundant — syncDetails is idempotent — and each one leaves the pane
+// self-consistent at its point in the flow.
+func (t *tui) renderVisibleList() {
+	t.sessionList.UpdateSessions(t.visibleSessions())
+	t.syncDetails()
+}
+
 func (t *tui) applySortAndRender() {
 	sortSessionsForUI(t.allCache, t.sortMode, t.serve.LastAttached)
 	t.sessionList.SetSortTitle(t.sortMode.String())
 	t.sessionList.SetFilter(filterDescription(t.tagFilter))
-	t.sessionList.UpdateSessions(t.visibleSessions())
+	t.renderVisibleList()
 }
 
 func (t *tui) actOnSelected(fn func(domain.Session)) {
