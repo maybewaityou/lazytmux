@@ -70,12 +70,13 @@ func (f *fakeRepo) CurrentSession() (string, bool) {
 type fakeMeta struct {
 	pins              map[string]bool
 	tags              map[string][]string
+	notes             map[string]string
 	lastAttachedCalls int
 	renameCalls       [][2]string
 }
 
 func newFakeMeta() *fakeMeta {
-	return &fakeMeta{pins: map[string]bool{}, tags: map[string][]string{}}
+	return &fakeMeta{pins: map[string]bool{}, tags: map[string][]string{}, notes: map[string]string{}}
 }
 
 func (m *fakeMeta) IsPinned(n string) bool { return m.pins[n] }
@@ -87,8 +88,17 @@ func (m *fakeMeta) SetPinned(n string, p bool) error {
 	}
 	return nil
 }
-func (m *fakeMeta) Tags(n string) []string                  { return m.tags[n] }
-func (m *fakeMeta) SetTags(n string, t []string) error      { m.tags[n] = t; return nil }
+func (m *fakeMeta) Tags(n string) []string             { return m.tags[n] }
+func (m *fakeMeta) SetTags(n string, t []string) error { m.tags[n] = t; return nil }
+func (m *fakeMeta) Note(n string) string               { return m.notes[n] }
+func (m *fakeMeta) SetNote(n, note string) error {
+	if note == "" {
+		delete(m.notes, n)
+	} else {
+		m.notes[n] = note
+	}
+	return nil
+}
 func (m *fakeMeta) SetLastAttached(n string) error          { m.lastAttachedCalls++; return nil }
 func (m *fakeMeta) LastAttached(n string) (time.Time, bool) { return time.Time{}, false }
 func (m *fakeMeta) Rename(oldName, newName string) error {
@@ -101,6 +111,10 @@ func (m *fakeMeta) Rename(oldName, newName string) error {
 		m.tags[newName] = tg
 		delete(m.tags, oldName)
 	}
+	if nt, ok := m.notes[oldName]; ok {
+		m.notes[newName] = nt
+		delete(m.notes, oldName)
+	}
 	return nil
 }
 
@@ -109,6 +123,7 @@ func TestListSessionsInjectsMetadata(t *testing.T) {
 	meta := newFakeMeta()
 	_ = meta.SetPinned("main", true)
 	_ = meta.SetTags("dev", []string{"work"})
+	_ = meta.SetNote("dev", "dev box")
 
 	svc := NewSessionService(repo, meta, nil)
 	got, err := svc.ListSessions()
@@ -117,6 +132,31 @@ func TestListSessionsInjectsMetadata(t *testing.T) {
 	}
 	if !got[0].Pinned || len(got[1].Tags) != 1 || got[1].Tags[0] != "work" {
 		t.Fatalf("metadata not injected: %+v", got)
+	}
+	if got[1].Note != "dev box" {
+		t.Fatalf("note not injected: got %q, want %q", got[1].Note, "dev box")
+	}
+	if got[0].Note != "" {
+		t.Fatalf("absent note should default to empty, got %q", got[0].Note)
+	}
+}
+
+func TestSaveNoteDelegates(t *testing.T) {
+	meta := newFakeMeta()
+	svc := NewSessionService(&fakeRepo{}, meta, nil)
+
+	if err := svc.SaveNote("api", "main service"); err != nil {
+		t.Fatalf("SaveNote: %v", err)
+	}
+	if got := meta.Note("api"); got != "main service" {
+		t.Errorf("after SaveNote, meta.Note = %q, want %q", got, "main service")
+	}
+	// Saving an empty note clears it (store deletes the key).
+	if err := svc.SaveNote("api", ""); err != nil {
+		t.Fatalf("SaveNote(empty): %v", err)
+	}
+	if got := meta.Note("api"); got != "" {
+		t.Errorf("empty SaveNote should clear note, got %q", got)
 	}
 }
 

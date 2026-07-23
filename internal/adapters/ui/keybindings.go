@@ -31,7 +31,7 @@ var keyBindings = []KeyBinding{
 	{"Navigate", "Enter", "Enter session"},
 	{"Navigate", "q", "Quit"},
 	{"Session", "a", "New"},
-	{"Session", "e", "Rename"},
+	{"Session", "e", "Edit"},
 	{"Session", "k", "Kill"},
 	{"Session", "d", "Detach"},
 	{"Session", "r", "Refresh"},
@@ -39,6 +39,7 @@ var keyBindings = []KeyBinding{
 	{"Search/Sort", "f", "Filter by tag"},
 	{"Metadata", "p", "Pin / unpin"},
 	{"Metadata", "t", "Edit tags"},
+	{"Metadata", "n", "Edit note"},
 	{"Metadata", "c", "Copy tmux attach"},
 	{"Other", "?", "Help"},
 }

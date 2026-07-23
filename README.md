@@ -12,7 +12,7 @@ A terminal-based, interactive **tmux session manager** — inspired by [lazyssh]
 
 lazytmux brings the lazyssh experience to your tmux server.
 <br/>
-With lazytmux, you can list, search, sort, pin, tag, create, rename, kill, detach, and enter your tmux sessions — all from a clean, keyboard-driven TUI. No more juggling `tmux ls` and `tmux attach -t <name>`; just a Tokyo Night–themed dashboard over your local tmux server.
+With lazytmux, you can list, search, sort, pin, tag, create, edit, kill, detach, and enter your tmux sessions — all from a clean, keyboard-driven TUI. No more juggling `tmux ls` and `tmux attach -t <name>`; just a Tokyo Night–themed dashboard over your local tmux server.
 
 ---
 
@@ -21,7 +21,7 @@ With lazytmux, you can list, search, sort, pin, tag, create, rename, kill, detac
 ### Session Management
 - 📜 List sessions from the local tmux server with live status and window counts.
 - ➕ Create new sessions from the UI.
-- ✏️ Rename sessions in place.
+- ✏️ Edit sessions (name, tags, note) in place.
 - 🗑️ Kill sessions safely.
 - 🔌 Detach sessions (keep them running in the background).
 - 📌 Pin / unpin favorites to keep them at the top.
@@ -85,7 +85,7 @@ The active filter is surfaced in the list's border title, so it's always clear w
 ### ➕ Create Session
 <img src="./docs/resources/add.png" alt="Create a new session" width="900" />
 
-Press `a` to spin up a new tmux session straight from the UI.
+Press `a` to spin up a new tmux session straight from the UI. Tab through the form to optionally add tags and a freeform note at the same time (re-edit anytime with `e`, or `t` / `n` for just tags / note).
 
 ---
 
@@ -193,11 +193,12 @@ make build-all
 | `↑↓`  | Navigate sessions                |
 | `Enter` | Enter session (`switch-client` / `attach`) |
 | `a`   | New session                             |
-| `e`   | Rename session                          |
+| `e`   | Edit session (name, tags, note)         |
 | `d`   | Detach session (keeps it running)       |
 | `k`   | Kill session                            |
 | `p`   | Pin / unpin                             |
 | `t`   | Edit tags (comma-separated)             |
+| `n`   | Edit note (freeform)                    |
 | `s`   | Cycle sort field                        |
 | `S`   | Cycle sort field (skip one)             |
 | `f`   | Filter sessions by tag                 |
@@ -209,10 +210,12 @@ make build-all
 
 **In the session form:**
 
-| Key     | Action   |
-| ------- | -------- |
-| `Enter` | Submit   |
-| `Esc`   | Cancel   |
+| Key           | Action              |
+| ------------- | ------------------- |
+| `Tab` / `↑↓`  | Move between fields |
+| `Enter`       | Submit (save)       |
+| `Shift+Enter` | Newline (in Note)   |
+| `Esc`         | Cancel              |
 
 Tip: the status bar at the bottom shows the result of your last action.
 

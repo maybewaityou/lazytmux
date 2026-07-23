@@ -66,22 +66,40 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		})
 		return nil
 	case 'a':
-		t.openForm("New session", "session name", "", false, func(name string) {
-			if err := t.serve.CreateSession(name); err == nil {
-				t.refresh()
-			} else {
+		t.openMultiFieldSessionForm("New session", "", "", "", func(name, tags, note string) {
+			if err := t.serve.CreateSession(name); err != nil {
 				t.setStatusTemporary("[" + colorRed + "]Create failed[-]")
+				t.closeForm()
+				return
 			}
+			if parsed := parseTags(tags); len(parsed) > 0 {
+				_ = t.serve.SaveTags(name, parsed)
+			}
+			if note = strings.TrimSpace(note); note != "" {
+				_ = t.serve.SaveNote(name, note)
+			}
+			t.refresh()
+			t.closeForm()
 		})
 		return nil
 	case 'e':
 		t.actOnSelected(func(s domain.Session) {
-			t.openForm("Rename", "new name", s.Name, false, func(newName string) {
-				if err := t.serve.RenameSession(s.Name, newName); err == nil {
-					t.refresh()
-				} else {
-					t.setStatusTemporary("[" + colorRed + "]Rename failed[-]")
+			t.openMultiFieldSessionForm("Edit session", s.Name, strings.Join(s.Tags, ", "), s.Note, func(name, tags, note string) {
+				// Rename only when the name actually changed: a no-op rename
+				// (same name) can error on some tmux versions. A successful
+				// rename migrates pin/tags/note/lastAttached to the new name,
+				// so the SaveTags/SaveNote below overwrite at the right key.
+				if name != s.Name {
+					if err := t.serve.RenameSession(s.Name, name); err != nil {
+						t.setStatusTemporary("[" + colorRed + "]Rename failed[-]")
+						t.closeForm()
+						return
+					}
 				}
+				_ = t.serve.SaveTags(name, parseTags(tags))
+				_ = t.serve.SaveNote(name, strings.TrimSpace(note))
+				t.refresh()
+				t.closeForm()
 			})
 		})
 		return nil
@@ -112,6 +130,9 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 				}
 			})
 		})
+		return nil
+	case 'n':
+		t.actOnSelected(t.editNote)
 		return nil
 	case 'f':
 		t.openTagFilter()
@@ -263,6 +284,46 @@ func (t *tui) openForm(title, placeholder, initialValue string, allowEmpty bool,
 func (t *tui) closeForm() {
 	t.app.SetRoot(t.root, true)
 	t.app.SetFocus(t.sessionList)
+}
+
+// openMultiFieldSessionForm opens the shared Name / Tags / Note modal. New
+// passes empty initial values and creates the session on submit; Edit passes the
+// session's current values and (re)saves them on submit (renaming first if the
+// name changed). The form guarantees a non-empty Name (Save is a no-op on an
+// empty Name), so onSubmit never receives "". Metadata writes after Create /
+// Rename are best-effort, mirroring RenameSession's tolerance of failures after
+// the primary tmux action already succeeded.
+func (t *tui) openMultiFieldSessionForm(title, initName, initTags, initNote string, onSubmit func(name, tags, note string)) {
+	form := NewMultiFieldSessionForm(title).
+		InitialValues(initName, initTags, initNote).
+		OnSubmit(onSubmit).
+		OnCancel(t.closeForm)
+	t.app.SetRoot(form.Primitive(), true)
+	t.app.SetFocus(form.Form())
+}
+
+// editNote opens a single-field modal to edit the selected session's note. An
+// empty submit clears the note (no confirm modal): clearing freeform text is
+// trivially reversible, so the confirm gate that tags get would be ceremony, not
+// safety. This is why it does not reuse openForm — openForm's allowEmpty path
+// assumes the empty case takes over the root to show a confirm modal (tags-only),
+// which note never does. NewSessionForm calls onSubmit on every Enter, so wiring
+// it directly gives the always-submit-and-close semantics note needs.
+func (t *tui) editNote(s domain.Session) {
+	form := NewSessionForm("Note", "freeform note").
+		InitialValue(s.Note).
+		OnSubmit(func(input string) {
+			note := strings.TrimSpace(input)
+			if err := t.serve.SaveNote(s.Name, note); err == nil {
+				t.refresh()
+			} else {
+				t.setStatusTemporary("[" + colorRed + "]Note failed[-]")
+			}
+			t.closeForm()
+		}).
+		OnCancel(t.closeForm)
+	t.app.SetRoot(form.Primitive(), true)
+	t.app.SetFocus(form.Input())
 }
 
 // refreshStatusMessage builds the transient footer toast shown after pressing

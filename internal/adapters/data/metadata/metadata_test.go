@@ -65,6 +65,36 @@ func TestTags(t *testing.T) {
 	}
 }
 
+func TestNote(t *testing.T) {
+	s := newTestStore(t)
+	if got := s.Note("main"); got != "" {
+		t.Fatalf("default note: got %q, want empty", got)
+	}
+	if err := s.SetNote("main", "primary box"); err != nil {
+		t.Fatalf("SetNote: %v", err)
+	}
+	if got := s.Note("main"); got != "primary box" {
+		t.Fatalf("note: got %q, want %q", got, "primary box")
+	}
+	// Overwrite.
+	if err := s.SetNote("main", "updated"); err != nil {
+		t.Fatalf("SetNote overwrite: %v", err)
+	}
+	if got := s.Note("main"); got != "updated" {
+		t.Fatalf("note after overwrite: got %q, want %q", got, "updated")
+	}
+	// Empty deletes the key entirely (not left as an empty string).
+	if err := s.SetNote("main", ""); err != nil {
+		t.Fatalf("SetNote(empty): %v", err)
+	}
+	if got := s.Note("main"); got != "" {
+		t.Errorf("expected empty after SetNote(\"\"), got %q", got)
+	}
+	if _, ok := s.data.Notes["main"]; ok {
+		t.Error("expected notes key to be deleted, not left empty")
+	}
+}
+
 func TestLastAttached(t *testing.T) {
 	s := newTestStore(t)
 	if _, ok := s.LastAttached("main"); ok {
@@ -101,6 +131,7 @@ func TestRename(t *testing.T) {
 	s := newTestStore(t)
 	_ = s.SetPinned("foo", true)
 	_ = s.SetTags("foo", []string{"work"})
+	_ = s.SetNote("foo", "primary")
 	_ = s.SetLastAttached("foo")
 	before, _ := s.LastAttached("foo")
 
@@ -108,8 +139,8 @@ func TestRename(t *testing.T) {
 		t.Fatalf("Rename: %v", err)
 	}
 	// old name fully cleared
-	if s.IsPinned("foo") || len(s.Tags("foo")) != 0 {
-		t.Errorf("old name should be cleared, pinned=%v tags=%v", s.IsPinned("foo"), s.Tags("foo"))
+	if s.IsPinned("foo") || len(s.Tags("foo")) != 0 || s.Note("foo") != "" {
+		t.Errorf("old name should be cleared, pinned=%v tags=%v note=%q", s.IsPinned("foo"), s.Tags("foo"), s.Note("foo"))
 	}
 	// pin migrated
 	if !s.IsPinned("bar") {
@@ -120,6 +151,10 @@ func TestRename(t *testing.T) {
 	sort.Strings(got)
 	if len(got) != 1 || got[0] != "work" {
 		t.Errorf("tags did not migrate to bar: %v", got)
+	}
+	// note migrated
+	if got := s.Note("bar"); got != "primary" {
+		t.Errorf("note did not migrate to bar: got %q, want %q", got, "primary")
 	}
 	// lastAttached migrated AND timestamp preserved
 	la, ok := s.LastAttached("bar")

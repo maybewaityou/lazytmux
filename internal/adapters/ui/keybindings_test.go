@@ -35,8 +35,8 @@ func TestKeyBindingsComplete(t *testing.T) {
 		}
 		seen[kb.Key] = true
 	}
-	// The two new keys this feature adds must be present.
-	for _, want := range []string{"f", "?"} {
+	// The keys these features add must be present.
+	for _, want := range []string{"f", "?", "n"} {
 		if !seen[want] {
 			t.Errorf("keyBindings missing key %q", want)
 		}

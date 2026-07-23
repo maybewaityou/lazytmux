@@ -46,6 +46,7 @@ func (s *service) ListSessions() ([]domain.Session, error) {
 		sessions[i].Pinned = s.meta.IsPinned(sessions[i].Name)
 		sessions[i].Tags = s.meta.Tags(sessions[i].Name)
 		sessions[i].LastAttached, _ = s.meta.LastAttached(sessions[i].Name)
+		sessions[i].Note = s.meta.Note(sessions[i].Name)
 	}
 	return sessions, nil
 }
@@ -80,6 +81,10 @@ func (s *service) TogglePin(name string) error {
 
 func (s *service) SaveTags(name string, tags []string) error {
 	return s.meta.SetTags(name, tags)
+}
+
+func (s *service) SaveNote(name string, note string) error {
+	return s.meta.SetNote(name, note)
 }
 
 func (s *service) LastAttached(name string) (time.Time, bool) {

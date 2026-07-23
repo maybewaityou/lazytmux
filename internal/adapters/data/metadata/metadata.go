@@ -30,6 +30,7 @@ type fileModel struct {
 	Pins         map[string]bool     `json:"pins"`
 	Tags         map[string][]string `json:"tags"`
 	LastAttached map[string]int64    `json:"lastAttached"`
+	Notes        map[string]string   `json:"notes"`
 }
 
 // Store implements ports.MetadataStore with thread-safe in-memory state
@@ -48,6 +49,7 @@ func NewStore(path string) (*Store, error) {
 			Pins:         map[string]bool{},
 			Tags:         map[string][]string{},
 			LastAttached: map[string]int64{},
+			Notes:        map[string]string{},
 		},
 	}
 	if err := os.MkdirAll(filepath.Dir(path), 0o755); err != nil {
@@ -93,6 +95,7 @@ func (s *Store) reloadLocked() error {
 		Pins:         map[string]bool{},
 		Tags:         map[string][]string{},
 		LastAttached: map[string]int64{},
+		Notes:        map[string]string{},
 	}
 	if err := json.Unmarshal(b, &fresh); err != nil {
 		return err
@@ -183,6 +186,22 @@ func (s *Store) SetTags(name string, tags []string) error {
 	})
 }
 
+func (s *Store) Note(name string) string {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	return s.data.Notes[name]
+}
+
+func (s *Store) SetNote(name string, note string) error {
+	return s.mutate(func(d *fileModel) {
+		if note == "" {
+			delete(d.Notes, name)
+		} else {
+			d.Notes[name] = note
+		}
+	})
+}
+
 func (s *Store) SetLastAttached(name string) error {
 	return s.mutate(func(d *fileModel) {
 		d.LastAttached[name] = time.Now().Unix()
@@ -198,6 +217,7 @@ func (s *Store) Rename(oldName, newName string) error {
 		relocate(d.Pins, oldName, newName)
 		relocate(d.Tags, oldName, newName)
 		relocate(d.LastAttached, oldName, newName)
+		relocate(d.Notes, oldName, newName)
 	})
 }
 

@@ -46,3 +46,23 @@ func TestDetailsRenderNoMarkWhenCurrentUnset(t *testing.T) {
 		t.Errorf("unset-current details must not contain (current), got: %q", got)
 	}
 }
+
+func TestDetailsRenderNote(t *testing.T) {
+	d := NewSessionDetails()
+	d.Render(domain.Session{Name: "api", WindowsCount: 1, Note: "primary box"})
+	got := d.GetText(true)
+	if !strings.Contains(got, "note:") {
+		t.Errorf("details must render a note label, got: %q", got)
+	}
+	if !strings.Contains(got, "primary box") {
+		t.Errorf("details must render the note text, got: %q", got)
+	}
+}
+
+func TestDetailsRenderNoNoteLineWhenEmpty(t *testing.T) {
+	d := NewSessionDetails()
+	d.Render(domain.Session{Name: "api", WindowsCount: 1})
+	if got := d.GetText(true); strings.Contains(got, "note:") {
+		t.Errorf("empty note must not render a note line, got: %q", got)
+	}
+}

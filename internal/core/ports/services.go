@@ -28,6 +28,10 @@ type MetadataStore interface {
 	SetTags(name string, tags []string) error
 	SetLastAttached(name string) error
 	LastAttached(name string) (time.Time, bool)
+	// Note returns the freeform note for the session, or "" when none is set.
+	Note(name string) string
+	// SetNote stores (or, when note is empty, deletes) the session's note.
+	SetNote(name string, note string) error
 	// Rename moves all metadata (pin/tags/lastAttached) from oldName to newName
 	// with mv semantics — newName becomes an exact copy of oldName's state
 	// (overwriting any stale entry at newName), then oldName is removed. A
@@ -50,6 +54,7 @@ type SessionService interface {
 	EnterSession(name string) error
 	TogglePin(name string) error
 	SaveTags(name string, tags []string) error
+	SaveNote(name string, note string) error
 	LastAttached(name string) (time.Time, bool)
 	CurrentSession() (name string, ok bool)
 }

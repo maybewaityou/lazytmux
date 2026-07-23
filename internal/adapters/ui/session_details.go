@@ -69,6 +69,9 @@ func (d *SessionDetails) Render(s domain.Session) {
 	if len(s.Tags) > 0 {
 		b.WriteString(fmt.Sprintf("  [%s]tags:      [%s]%s[-]\n", colorSecondary, colorGreen, strings.Join(s.Tags, ", ")))
 	}
+	if s.Note != "" {
+		b.WriteString(fmt.Sprintf("  [%s]note:      [%s]%s[-]\n", colorSecondary, colorPrimary, s.Note))
+	}
 
 	if len(s.Windows) > 0 {
 		b.WriteString("\n[" + colorTitle + "::b]Windows[-]\n")
