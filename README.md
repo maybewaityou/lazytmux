@@ -71,10 +71,28 @@ Press `/`, type, and the list narrows to matching sessions in real time.
 
 ---
 
+### 🏷️ Tag Filter
+<img src="./docs/resources/filters.png" alt="Tag filter multi-select" width="900" />
+
+Press `f` to open a multi-select tag picker — choose any number of tags and the list filters to sessions matching any of them (OR-matched).
+
+<img src="./docs/resources/filtered-list.png" alt="Filtered session list" width="900" />
+
+The active filter is surfaced in the list's border title, so it's always clear which tags are constraining the view. The filter is view-only and never persisted — a fresh launch always starts unfiltered.
+
+---
+
 ### ➕ Create Session
 <img src="./docs/resources/add.png" alt="Create a new session" width="900" />
 
 Press `a` to spin up a new tmux session straight from the UI.
+
+---
+
+### 🔌 Detach Session
+<img src="./docs/resources/detach.png" alt="Detach a session" width="900" />
+
+Press `d` to detach the selected session — it keeps running in the background while you drop back to the dashboard. The status bar confirms the result.
 
 ---
 
@@ -89,6 +107,13 @@ Press `k` to safely kill the selected session — the status bar confirms the re
 <img src="./docs/resources/refresh.png" alt="Refresh session state" width="900" />
 
 Press `r` to pull fresh session and window state from tmux in the background while keeping your selection intact.
+
+---
+
+### ❓ In-app Help
+<img src="./docs/resources/help.png" alt="Help panel" width="900" />
+
+Press `?` to pop up a two-column, grouped panel listing every key binding — the same single source the dashboard, this README's Key Bindings table, and the `?` panel all draw from.
 
 </div>
 

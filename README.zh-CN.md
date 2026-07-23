@@ -71,10 +71,28 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 
 ---
 
+### 🏷️ 标签过滤
+<img src="./docs/resources/filters.png" alt="标签过滤多选面板" width="900" />
+
+按 `f` 打开标签多选面板 —— 可任选若干标签,列表会过滤出匹配其中任意一个的会话(OR 匹配)。
+
+<img src="./docs/resources/filtered-list.png" alt="过滤后的会话列表" width="900" />
+
+当前激活的过滤器会显示在列表边框标题中,一眼即可看出是哪些标签在约束视图。该过滤器仅作用于当前视图、不会持久化 —— 重新启动后总是回到无过滤状态。
+
+---
+
 ### ➕ 新建会话
 <img src="./docs/resources/add.png" alt="新建会话" width="900" />
 
 按 `a` 即可在 UI 中直接新建一个 tmux 会话。
+
+---
+
+### 🔌 分离会话
+<img src="./docs/resources/detach.png" alt="分离会话" width="900" />
+
+按 `d` 分离选中的会话 —— 它会在后台继续运行,而你回到仪表盘。底部状态栏会确认操作结果。
 
 ---
 
@@ -89,6 +107,13 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 <img src="./docs/resources/refresh.png" alt="刷新会话状态" width="900" />
 
 按 `r` 在后台从 tmux 拉取最新的会话与窗口状态,并保持当前选中不变。
+
+---
+
+### ❓ 应用内帮助
+<img src="./docs/resources/help.png" alt="帮助面板" width="900" />
+
+按 `?` 弹出双列分组的快捷键面板,列出全部按键 —— 它与仪表盘、本 README 的快捷键表同出一源。
 
 </div>
 
