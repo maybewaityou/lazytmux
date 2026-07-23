@@ -53,7 +53,7 @@ func defaultHints() string {
 	return "[" + k + "]↑↓[-] Navigate  • " +
 		"[" + k + "]Enter[-] Enter  • " +
 		"[" + k + "]a[-] New  • " +
-		"[" + k + "]e[-] Rename  • " +
+		"[" + k + "]e[-] Edit  • " +
 		"[" + k + "]d[-] Detach  • " +
 		"[" + k + "]k[-] Kill  • " +
 		"[" + k + "]r[-] Refresh  • " +

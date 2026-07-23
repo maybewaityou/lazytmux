@@ -34,7 +34,7 @@ func TestEmptyHintsAnchorsUsefulKeys(t *testing.T) {
 // that are meaningless with nothing selected.
 func TestEmptyHintsOmitsNoOpKeys(t *testing.T) {
 	got := emptyHints()
-	for _, dead := range []string{"Kill", "Detach", "Copy", "Rename", "Pin", "Tags", "Sort", "Enter", "Filter"} {
+	for _, dead := range []string{"Kill", "Detach", "Copy", "Edit", "Pin", "Tags", "Sort", "Enter", "Filter"} {
 		if strings.Contains(got, dead) {
 			t.Errorf("emptyHints should not advertise no-op %q: %q", dead, got)
 		}
@@ -49,7 +49,7 @@ func TestEmptyHintsOmitsNoOpKeys(t *testing.T) {
 func TestDefaultHintsCoreKeysAndPointsToHelp(t *testing.T) {
 	got := defaultHints()
 	// Core keys that stay in the footer.
-	for _, want := range []string{"Navigate", "Enter", "New", "Rename", "Detach", "Kill", "Refresh", "Search", "Help", "Quit"} {
+	for _, want := range []string{"Navigate", "Enter", "New", "Edit", "Detach", "Kill", "Refresh", "Search", "Help", "Quit"} {
 		if !strings.Contains(got, want) {
 			t.Errorf("defaultHints missing expected key %q: %q", want, got)
 		}
