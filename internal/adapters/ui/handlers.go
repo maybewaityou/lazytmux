@@ -34,7 +34,7 @@ const statusToastTimeout = 3 * time.Second
 
 func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 	// When the search bar is focused, let it handle all keys (typing).
-	if t.app.GetFocus() == t.searchBar {
+	if t.searchBarHasFocus() {
 		return e
 	}
 	switch e.Rune() {
@@ -142,6 +142,20 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		return nil
 	}
 	switch e.Key() {
+	case tcell.KeyRight:
+		// List → Details: arrow into the right-hand pane. The list's own capture
+		// no longer swallows Right (it used to return to the search bar), so the
+		// key bubbles up to this global handler.
+		if t.listHasFocus() {
+			t.focusDetails()
+			return nil
+		}
+	case tcell.KeyLeft:
+		// Details → List: arrow back to the session list.
+		if t.detailsHasFocus() {
+			t.focusList()
+			return nil
+		}
 	case tcell.KeyEnter:
 		t.actOnSelected(func(s domain.Session) {
 			if err := t.serve.EnterSession(s.Name); err != nil {
@@ -191,7 +205,49 @@ func (t *tui) loadWindowsAndRender(s domain.Session, gen uint64) {
 // Mirrors lazyssh: ESC only blurs the input, so the list (and its cursor)
 // stays intact. Clear the filter by editing the field instead.
 func (t *tui) blurSearchBar() {
+	t.focusList()
+}
+
+// focusDetails moves focus to the right-hand details pane. The pane keeps its
+// normal border styling on focus — it intentionally matches how the session
+// list looks when focused, rather than highlighting, so the two panes read as
+// one consistent surface.
+func (t *tui) focusDetails() {
+	t.app.SetFocus(t.details)
+}
+
+// focusList returns focus to the session list. Centralizing the list as the
+// "home" focus target keeps every return-to-list path — arrow-back from
+// details, ESC from the search bar, closing a form or modal — in one place.
+func (t *tui) focusList() {
 	t.app.SetFocus(t.sessionList)
+}
+
+// listHasFocus reports whether focus is on the session list. Keyboard focus
+// lands on the *SessionList wrapper (we call SetFocus(t.sessionList)), but a
+// mouse click lands on the embedded *tview.List: its MouseHandler calls setFocus
+// on the embedded widget, not the wrapper. Both objects must count — without
+// this, the arrow keys would work only after keyboard focus and silently fail
+// after a mouse click.
+func (t *tui) listHasFocus() bool {
+	f := t.app.GetFocus()
+	return f == t.sessionList || f == t.sessionList.List
+}
+
+// detailsHasFocus reports whether focus is on the details pane. Same
+// wrapper-vs-embedded-widget reasoning as listHasFocus: a click focuses the
+// embedded *tview.TextView, the arrow key focuses the *SessionDetails wrapper.
+func (t *tui) detailsHasFocus() bool {
+	f := t.app.GetFocus()
+	return f == t.details || f == t.details.TextView
+}
+
+// searchBarHasFocus reports whether focus is on the search bar, accepting both
+// the *SearchBar wrapper (keyboard '/') and the embedded *tview.InputField
+// (mouse click). See listHasFocus for why both must count.
+func (t *tui) searchBarHasFocus() bool {
+	f := t.app.GetFocus()
+	return f == t.searchBar || f == t.searchBar.InputField
 }
 
 // refresh reloads sessions from tmux, re-renders the list, and returns the
@@ -283,7 +339,7 @@ func (t *tui) openForm(title, placeholder, initialValue string, allowEmpty bool,
 
 func (t *tui) closeForm() {
 	t.app.SetRoot(t.root, true)
-	t.app.SetFocus(t.sessionList)
+	t.focusList()
 }
 
 // openMultiFieldSessionForm opens the shared Name / Tags / Note modal. New
@@ -457,7 +513,7 @@ func (t *tui) killSession(s domain.Session) {
 // closeModal restores the main layout after a modal dialog.
 func (t *tui) closeModal() {
 	t.app.SetRoot(t.root, true)
-	t.app.SetFocus(t.sessionList)
+	t.focusList()
 }
 
 // showDetachConfirmModal asks the user to confirm before detaching a session.

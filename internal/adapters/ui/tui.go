@@ -85,7 +85,7 @@ func (t *tui) Run() error {
 	t.queueDraw = func(f func()) { t.app.QueueUpdateDraw(f) }
 	t.buildComponents().buildLayout().bindEvents().loadInitialData()
 	t.app.SetRoot(t.root, true)
-	t.app.SetFocus(t.sessionList)
+	t.focusList()
 	t.logger.Infow("starting TUI", "version", t.version, "commit", t.commit)
 	if err := t.app.Run(); err != nil {
 		t.logger.Errorw("application run error", "error", err)
@@ -109,7 +109,7 @@ func (t *tui) buildComponents() *tui {
 	t.searchBar = NewSearchBar().
 		OnSearch(t.handleSearchInput).
 		OnEscape(t.blurSearchBar).
-		OnNavigate(func() { t.app.SetFocus(t.sessionList) })
+		OnNavigate(func() { t.focusList() })
 	t.sessionList = NewSessionList().
 		OnSelectionChange(t.handleSelectionChange).
 		OnReturnToSearch(func() { t.app.SetFocus(t.searchBar) })

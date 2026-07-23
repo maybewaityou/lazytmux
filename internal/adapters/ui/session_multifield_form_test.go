@@ -104,3 +104,51 @@ func screenContains(screen tcell.SimulationScreen, needle string) bool {
 	}
 	return strings.Contains(b.String(), needle)
 }
+
+// focusFormItem sets hasFocus on the i-th item so GetFocusedItemIndex reports
+// it. This mirrors what tview.Form.Draw does to the focused item at render
+// time; SetFocus alone does not focus the item when its index is 0 and nothing
+// else is focused yet (a tview quirk that only surfaces without a Draw).
+func focusFormItem(f *MultiFieldSessionForm, i int) {
+	switch v := f.Form().GetFormItem(i).(type) {
+	case *tview.InputField:
+		v.Focus(func(tview.Primitive) {})
+	case *tview.TextArea:
+		v.Focus(func(tview.Primitive) {})
+	}
+}
+
+// TestMultiFieldFormMoveField verifies ↑/↓ switch fields only on the single-line
+// Name/Tags inputs: down moves forward (Name→Tags→Note), up moves backward, the
+// Note TextArea is left alone (its ↑/↓ stay on the cursor), and ↑ on Name is a
+// boundary no-op. Each case focuses the starting field, calls moveField, and
+// checks both the "consumed" return and where focus landed.
+func TestMultiFieldFormMoveField(t *testing.T) {
+	for _, tc := range []struct {
+		name   string
+		from   int
+		down   bool
+		wantOK bool
+		want   int // expected focused item afterwards
+	}{
+		{"Name down to Tags", mfFieldName, true, true, mfFieldTags},
+		{"Tags down to Note", mfFieldTags, true, true, mfFieldNote},
+		{"Tags up to Name", mfFieldTags, false, true, mfFieldName},
+		{"Name up is a no-op (boundary)", mfFieldName, false, false, mfFieldName},
+		{"Note down stays (cursor move)", mfFieldNote, true, false, mfFieldNote},
+		{"Note up stays (cursor move)", mfFieldNote, false, false, mfFieldNote},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			f := NewMultiFieldSessionForm("Edit session")
+			focusFormItem(f, tc.from)
+			got := f.moveField(tc.down)
+			if got != tc.wantOK {
+				t.Fatalf("moveField(down=%v) from item %d = %v, want %v", tc.down, tc.from, got, tc.wantOK)
+			}
+			item, _ := f.Form().GetFocusedItemIndex()
+			if item != tc.want {
+				t.Errorf("focused item after move = %d, want %d", item, tc.want)
+			}
+		})
+	}
+}

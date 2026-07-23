@@ -58,7 +58,10 @@ func (sl *SessionList) build() {
 
 	sl.List.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		switch e.Key() {
-		case tcell.KeyLeft, tcell.KeyRight, tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyESC:
+		// Right is reserved for List → Details focus and is handled by the
+		// global key handler, so it is intentionally NOT swallowed here; the
+		// remaining keys return focus to the search bar.
+		case tcell.KeyLeft, tcell.KeyBackspace, tcell.KeyBackspace2, tcell.KeyESC:
 			if sl.onReturnToSearch != nil {
 				sl.onReturnToSearch()
 			}

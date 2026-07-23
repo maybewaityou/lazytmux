@@ -43,10 +43,12 @@ const modalColumnHeight = 13
 // MultiFieldSessionForm is a Name / Tags / Note modal shared by New and Edit.
 // Name and Tags are single-line inputs; Note is a multi-line text area. Enter
 // submits from any field; Shift+Enter inserts a newline inside Note; Esc
-// cancels. Tab and arrows move between fields via tview.Form's built-in
-// navigation. (Shift+Enter requires a terminal that reports it distinctly from
-// Enter — one speaking the CSI-u / kitty keyboard protocol; on a terminal that
-// doesn't, Shift+Enter behaves like plain Enter and submits.)
+// cancels. Fields are navigated with Tab/Shift+Tab everywhere, plus ↑/↓ on the
+// single-line Name/Tags inputs (see moveField); the Note TextArea keeps ↑/↓ for
+// cursor movement, so leave Note with Shift+Tab. (Shift+Enter requires a
+// terminal that reports it distinctly from Enter — one speaking the CSI-u /
+// kitty keyboard protocol; on a terminal that doesn't, Shift+Enter behaves like
+// plain Enter and submits.)
 type MultiFieldSessionForm struct {
 	form     *tview.Form
 	hint     *tview.TextView
@@ -82,15 +84,16 @@ func NewMultiFieldSessionForm(title string) *MultiFieldSessionForm {
 	f.form.AddInputField("Name", "", 0, nil, nil).
 		AddInputField("Tags", "", 0, nil, nil).
 		AddTextArea("Note", "", 0, noteVisibleRows, 0, nil)
-	f.hint.SetText("[" + colorSecondary + "]Enter(save) · Shift+Enter(newline in Note) · Esc(cancel)[-]")
+	f.hint.SetText("[" + colorSecondary + "]↑↓(switch field) · Enter(save) · Shift+Enter(newline in Note) · Esc(cancel)[-]")
 
 	// Enter submits from any field — the Note text area never sees a plain Enter
 	// (so no stray newline is inserted), making "type a name and press Enter"
 	// create/save immediately. Shift+Enter is passed through to the focused item
 	// so Note can insert a newline (tview's TextArea newlines on KeyEnter
 	// regardless of modifiers, so only the shifted variant reaches it). Esc
-	// cancels. Everything else is tview.Form's default (it forwards unhandled
-	// keys to the focused item, which handles Tab/arrows navigation).
+	// cancels. ↑/↓ on the single-line Name/Tags inputs switch fields (moveField);
+	// everything else falls through to tview.Form, which forwards unhandled keys
+	// to the focused item (Tab/Shift+Tab navigate fields there).
 	f.form.SetInputCapture(func(e *tcell.EventKey) *tcell.EventKey {
 		switch e.Key() {
 		case tcell.KeyESC:
@@ -102,6 +105,13 @@ func NewMultiFieldSessionForm(title string) *MultiFieldSessionForm {
 			}
 			f.submit()
 			return nil
+		case tcell.KeyDown, tcell.KeyUp:
+			// Only the single-line inputs (Name/Tags) react: the Note TextArea
+			// keeps ↑/↓ for cursor movement, so moveField leaves it alone and
+			// returns false, letting the event fall through to tview.Form.
+			if f.moveField(e.Key() == tcell.KeyDown) {
+				return nil
+			}
 		}
 		return e
 	})
@@ -151,6 +161,29 @@ func (f *MultiFieldSessionForm) cancel() {
 	if f.onCancel != nil {
 		f.onCancel()
 	}
+}
+
+// moveField shifts focus to an adjacent field (down = next, up = previous) when
+// the focus is on a single-line InputField (Name/Tags). It returns true when it
+// moved focus, signalling the caller to consume the key. The Note TextArea is
+// deliberately left alone so ↑/↓ keep moving its cursor for multi-line
+// editing; from Note, return to Tags with Shift+Tab. Boundary moves (↑ on Name,
+// ↓ on Tags into Note is allowed) that have no target also return false, so the
+// key harmlessly falls through.
+func (f *MultiFieldSessionForm) moveField(down bool) bool {
+	item, _ := f.form.GetFocusedItemIndex()
+	if item != mfFieldName && item != mfFieldTags {
+		return false
+	}
+	target := item + 1
+	if !down {
+		target = item - 1
+	}
+	if target < 0 || target > mfFieldNote {
+		return false
+	}
+	f.form.SetFocus(target)
+	return true
 }
 
 // fieldText reads the current value of the i-th item, whether it is an

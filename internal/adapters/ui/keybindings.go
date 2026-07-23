@@ -28,6 +28,7 @@ type KeyBinding struct {
 var keyBindings = []KeyBinding{
 	{"Navigate", "/", "Search"},
 	{"Navigate", "↑↓", "Move"},
+	{"Navigate", "←/→", "Focus list/details"},
 	{"Navigate", "Enter", "Enter session"},
 	{"Navigate", "q", "Quit"},
 	{"Session", "a", "New"},

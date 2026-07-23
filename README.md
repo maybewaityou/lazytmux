@@ -191,6 +191,7 @@ make build-all
 | ----- | --------------------------------------- |
 | `/`   | Focus search bar                        |
 | `↑↓`  | Navigate sessions                |
+| `←/→` | Focus list ↔ details             |
 | `Enter` | Enter session (`switch-client` / `attach`) |
 | `a`   | New session                             |
 | `e`   | Edit session (name, tags, note)         |
@@ -212,7 +213,8 @@ make build-all
 
 | Key           | Action              |
 | ------------- | ------------------- |
-| `Tab` / `↑↓`  | Move between fields |
+| `↑↓`         | Switch field (Name/Tags) |
+| `Tab/Shift+Tab` | Move between fields |
 | `Enter`       | Submit (save)       |
 | `Shift+Enter` | Newline (in Note)   |
 | `Esc`         | Cancel              |
