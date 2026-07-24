@@ -42,14 +42,14 @@ func formatSessionLine(s domain.Session, current string) string {
 	// 2 visible cells (▶+space, or space+space) so every row left-aligns
 	// whether or not it is the current session.
 	isCurrent := current != "" && s.Name == current
-	marker := " "
+	marker := ""
 	if isCurrent {
 		marker = "[" + colorAccent + "]▶[-]"
 	}
 	// pin column: fixed 3 cells so pinned/unpinned rows stay aligned.
-	pin := "   "
+	pin := "  "
 	if s.Pinned {
-		pin = "[" + colorGreen + "]📌[-] "
+		pin = "[" + colorGreen + "]📌[-]"
 	}
 	icon := activityIcon(s.LastActivity, s.Attached)
 	// The current session's name uses the accent color (matching the ▶ marker)
