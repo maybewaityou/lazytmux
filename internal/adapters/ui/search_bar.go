@@ -34,7 +34,7 @@ func NewSearchBar() *SearchBar {
 }
 
 func (sb *SearchBar) build() {
-	sb.SetLabel("🔍 ").
+	sb.SetLabel(" 🔍 ").
 		SetLabelColor(tcell.GetColor(colorAccent)).
 		SetFieldBackgroundColor(tcell.ColorDefault).
 		SetFieldTextColor(tcell.GetColor(colorPrimary)).
