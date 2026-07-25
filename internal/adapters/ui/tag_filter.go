@@ -64,9 +64,10 @@ func collectTags(sessions []domain.Session) []string {
 	return out
 }
 
-// filterDescription joins the active filter tags for display in the list title
-// and the help modal's status line. Empty input yields "" so callers can treat
-// a non-empty result as "filter active".
+// filterDescription joins the active filter tags as plain text for the help
+// modal's status line (the list title uses renderTagChips for a chip badge).
+// Empty input yields "" so callers can treat a non-empty result as "filter
+// active".
 func filterDescription(tags []string) string {
 	return strings.Join(tags, ", ")
 }

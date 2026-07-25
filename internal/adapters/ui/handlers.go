@@ -331,7 +331,10 @@ func (t *tui) renderVisibleList() {
 func (t *tui) applySortAndRender() {
 	sortSessionsForUI(t.allCache, t.sortMode, t.serve.LastAttached)
 	t.sessionList.SetSortTitle(t.sortMode.String())
-	t.sessionList.SetFilter(filterDescription(t.tagFilter))
+	// Title renders the active filter tags as chips (black on accent) so they
+	// stand out from the surrounding title text. The help modal keeps the plain
+	// filterDescription form — title wants a glanceable badge, help wants text.
+	t.sessionList.SetFilter(renderTagChips(t.tagFilter))
 	t.renderVisibleList()
 }
 
