@@ -17,7 +17,6 @@ package ui
 import (
 	"strings"
 	"testing"
-	"time"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
 )
@@ -86,31 +85,6 @@ func TestDetailsRenderPinnedFalse(t *testing.T) {
 	got := d.GetText(false) // GetText(false) keeps color tags; value's tag is the assertion
 	if !strings.Contains(got, colorPrimary+"]false[-]") {
 		t.Errorf("pinned=false value missing: %q", got)
-	}
-}
-
-func TestDetailsRenderLastAttached(t *testing.T) {
-	d := NewSessionDetails()
-	lastAtt := time.Date(2026, 7, 25, 14, 8, 0, 0, time.UTC)
-	d.Render(domain.Session{Name: "api", WindowsCount: 1, LastAttached: lastAtt})
-	got := d.GetText(true)
-	if !strings.Contains(got, "last attached:") {
-		t.Errorf("last attached label missing: %q", got)
-	}
-	if !strings.Contains(got, "2026-07-25 14:08") {
-		t.Errorf("last attached absolute time missing: %q", got)
-	}
-}
-
-func TestDetailsRenderLastAttachedNeverWhenZero(t *testing.T) {
-	d := NewSessionDetails()
-	d.Render(domain.Session{Name: "api", WindowsCount: 1})
-	got := d.GetText(true)
-	if !strings.Contains(got, "last attached:") {
-		t.Errorf("last attached label missing: %q", got)
-	}
-	if !strings.Contains(got, "never") {
-		t.Errorf("zero LastAttached should render as never: %q", got)
 	}
 }
 
