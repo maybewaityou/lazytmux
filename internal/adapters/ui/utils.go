@@ -16,6 +16,7 @@ package ui
 
 import (
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
@@ -64,7 +65,14 @@ func formatSessionLine(s domain.Session, current string) string {
 	name := "[" + nameColor + "]" + fmt.Sprintf("%-20s", s.Name) + "[-]"
 	wins := "[" + colorSecondary + "]" + fmt.Sprintf("%-8s", fmt.Sprintf("%d win", s.WindowsCount)) + "[-]"
 	attach := "[" + colorDim + "]Last Attached: " + humanizeDuration(s.LastAttached) + "[-]"
-	return fmt.Sprintf("%s %s%s %s  %s  %s", marker, pin, icon, name, wins, attach)
+	line := fmt.Sprintf("%s %s%s %s  %s  %s", marker, pin, icon, name, wins, attach)
+	// Tags append at the row tail (after Last Attached) so the fixed-width
+	// columns and the "Last Attached:" byte offset are unaffected — the color
+	// tags never enter the %-N spec, preserving TestFormatSessionLineAlignment.
+	if badges := renderTagBadgesForList(s.Tags); badges != "" {
+		line += "  " + badges
+	}
+	return line
 }
 
 // activityIcon picks the three-state status emoji. The attached flag is
@@ -120,4 +128,47 @@ func humanizeDuration(t time.Time) string {
 		}
 		return fmt.Sprintf("%dy ago", years)
 	}
+}
+
+// tagChip renders one tag as a black-on-accent pill. The trailing [-:-:-]
+// resets foreground/background/style, so callers must not wrap the result in
+// another color tag — that inner reset would clash with an outer wrap.
+func tagChip(t string) string {
+	return fmt.Sprintf("[black:%s] %s [-:-:-]", colorAccent, t)
+}
+
+// renderTagChips renders every tag as a pill for the details pane (no
+// truncation).
+func renderTagChips(tags []string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	chips := make([]string, 0, len(tags))
+	for _, t := range tags {
+		chips = append(chips, tagChip(t))
+	}
+	return strings.Join(chips, " ")
+}
+
+// renderTagBadgesForList renders at most two tag chips for the list row (space
+// is tight) and collapses any overflow into a dim "+N" marker, matching the
+// lazyssh list style. Returns "" when there are no tags so the row tail stays
+// clean.
+func renderTagBadgesForList(tags []string) string {
+	if len(tags) == 0 {
+		return ""
+	}
+	const maxTags = 2
+	shown := tags
+	if len(tags) > maxTags {
+		shown = tags[:maxTags]
+	}
+	parts := make([]string, 0, len(shown)+1)
+	for _, t := range shown {
+		parts = append(parts, tagChip(t))
+	}
+	if extra := len(tags) - len(shown); extra > 0 {
+		parts = append(parts, fmt.Sprintf("[%s]+%d[-]", colorDim, extra))
+	}
+	return strings.Join(parts, " ")
 }

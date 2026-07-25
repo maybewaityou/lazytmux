@@ -59,18 +59,22 @@ func (d *SessionDetails) Render(s domain.Session) {
 	}
 	b.WriteString("[" + colorAccent + "::b]" + name + "[-]\n\n")
 	b.WriteString("[" + colorTitle + "::b]Basic Info[-]\n")
-	b.WriteString(fmt.Sprintf("  [%s]created:   [%s]%s[-]\n", colorSecondary, colorPrimary, s.Created.Format("2006-01-02 15:04")))
-	b.WriteString(fmt.Sprintf("  [%s]activity:  [%s]%s[-]\n", colorSecondary, colorPrimary, s.LastActivity.Format("2006-01-02 15:04")))
-	b.WriteString(fmt.Sprintf("  [%s]attached:  [%s]%d client(s)[-]\n", colorSecondary, colorPrimary, s.AttachedCount))
-	b.WriteString(fmt.Sprintf("  [%s]windows:   [%s]%d[-]\n", colorSecondary, colorPrimary, s.WindowsCount))
+	b.WriteString(detailField("created", s.Created.Format("2006-01-02 15:04")))
+	b.WriteString(detailField("activity", s.LastActivity.Format("2006-01-02 15:04")))
+	b.WriteString(detailField("last attached", humanizeDuration(s.LastAttached)))
+	b.WriteString(detailField("attached", fmt.Sprintf("%d client(s)", s.AttachedCount)))
+	b.WriteString(detailField("windows", fmt.Sprintf("%d", s.WindowsCount)))
 	if s.Path != "" {
-		b.WriteString(fmt.Sprintf("  [%s]path:      [%s]%s[-]\n", colorSecondary, colorPrimary, s.Path))
+		b.WriteString(detailField("path", s.Path))
 	}
+	b.WriteString(detailField("pinned", pinnedStr(s.Pinned)))
 	if len(s.Tags) > 0 {
-		b.WriteString(fmt.Sprintf("  [%s]tags:      [%s]%s[-]\n", colorSecondary, colorGreen, strings.Join(s.Tags, ", ")))
+		// Tags carry their own [black:accent]...[-:-:-] chips, so they bypass
+		// detailField's colorPrimary wrap to avoid nested conflicting tags.
+		b.WriteString(padTagged("  ["+colorSecondary+"]tags:[-]", detailLabelWidth) + renderTagChips(s.Tags) + "\n")
 	}
 	if s.Note != "" {
-		b.WriteString(fmt.Sprintf("  [%s]note:      [%s]%s[-]\n", colorSecondary, colorPrimary, s.Note))
+		b.WriteString(detailField("note", s.Note))
 	}
 
 	if len(s.Windows) > 0 {
@@ -94,4 +98,28 @@ func (d *SessionDetails) Render(s domain.Session) {
 func (d *SessionDetails) RenderEmpty(msg string) {
 	d.SetTextAlign(tview.AlignCenter)
 	d.SetText("[" + colorSecondary + "]" + msg + "[-]")
+}
+
+// detailLabelWidth is the visible width every detail label is padded to (the
+// 2-space indent plus label and colon), sized to the longest label
+// "  last attached:" so all values start at the same column. tview color tags
+// occupy bytes but no visible width, so padding must use tview.TaggedStringWidth,
+// not fmt's %-N.
+const detailLabelWidth = 16
+
+// detailField renders one "  label: value" line with the label in
+// colorSecondary and the value in colorPrimary, label padded to
+// detailLabelWidth. Callers rendering values that carry their own color tags
+// (e.g. tag chips) must NOT use this helper — see Render's tags line.
+func detailField(label, value string) string {
+	return padTagged("  ["+colorSecondary+"]"+label+":[-]", detailLabelWidth) + "[" + colorPrimary + "]" + value + "[-]\n"
+}
+
+// pinnedStr renders the pinned bool as the literal "true"/"false" shown in the
+// details pane (matching lazyssh).
+func pinnedStr(p bool) string {
+	if p {
+		return "true"
+	}
+	return "false"
 }

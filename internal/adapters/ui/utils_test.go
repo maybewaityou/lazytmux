@@ -150,3 +150,85 @@ func assertNotContains(t *testing.T, s, substr string) {
 		t.Errorf("expected output NOT to contain %q\n got: %q", substr, s)
 	}
 }
+
+// Tag chips render as black text on a colorAccent (#7aa2f7) pill, space-padded
+// inside the brackets so adjacent chips don't touch. The literal hex values
+// are intentional — the chip color is a visual contract, not an incidental
+// constant, so the test locks it down rather than aliasing colorAccent.
+func TestRenderTagChips(t *testing.T) {
+	if got := renderTagChips(nil); got != "" {
+		t.Errorf("nil tags: want empty, got %q", got)
+	}
+	if got := renderTagChips([]string{}); got != "" {
+		t.Errorf("empty tags: want empty, got %q", got)
+	}
+	one := renderTagChips([]string{"work"})
+	wantOne := "[black:#7aa2f7] work [-:-:-]"
+	if one != wantOne {
+		t.Errorf("single chip: want %q, got %q", wantOne, one)
+	}
+	three := renderTagChips([]string{"a", "b", "c"})
+	wantThree := "[black:#7aa2f7] a [-:-:-] [black:#7aa2f7] b [-:-:-] [black:#7aa2f7] c [-:-:-]"
+	if three != wantThree {
+		t.Errorf("three chips (no truncation in details): want %q, got %q", wantThree, three)
+	}
+}
+
+func TestRenderTagBadgesForList(t *testing.T) {
+	if got := renderTagBadgesForList(nil); got != "" {
+		t.Errorf("nil tags: want empty, got %q", got)
+	}
+	two := renderTagBadgesForList([]string{"a", "b"})
+	wantTwo := "[black:#7aa2f7] a [-:-:-] [black:#7aa2f7] b [-:-:-]"
+	if two != wantTwo {
+		t.Errorf("two badges (no overflow): want %q, got %q", wantTwo, two)
+	}
+	three := renderTagBadgesForList([]string{"a", "b", "c"})
+	wantThree := "[black:#7aa2f7] a [-:-:-] [black:#7aa2f7] b [-:-:-] [#414868]+1[-]"
+	if three != wantThree {
+		t.Errorf("three badges (truncate to 2 + +1): want %q, got %q", wantThree, three)
+	}
+	four := renderTagBadgesForList([]string{"a", "b", "c", "d"})
+	wantFour := "[black:#7aa2f7] a [-:-:-] [black:#7aa2f7] b [-:-:-] [#414868]+2[-]"
+	if four != wantFour {
+		t.Errorf("four badges (truncate to 2 + +2): want %q, got %q", wantFour, four)
+	}
+}
+
+func TestFormatSessionLineTagsAppended(t *testing.T) {
+	s := domain.Session{
+		Name: "api", WindowsCount: 1, LastActivity: time.Now(),
+		Tags: []string{"work", "urgent"},
+	}
+	line := formatSessionLine(s, "")
+	if !strings.Contains(line, "[black:"+colorAccent+"] work [-:-:-]") {
+		t.Errorf("tag chip missing in list line: %q", line)
+	}
+	if !strings.Contains(line, "[black:"+colorAccent+"] urgent [-:-:-]") {
+		t.Errorf("second tag chip missing: %q", line)
+	}
+	idxLA := strings.Index(line, "Last Attached:")
+	idxTag := strings.Index(line, "[black:")
+	if idxLA < 0 || idxTag < 0 || idxTag < idxLA {
+		t.Errorf("tags must follow Last Attached: la=%d tag=%d line=%q", idxLA, idxTag, line)
+	}
+}
+
+func TestFormatSessionLineNoTagTailWhenEmpty(t *testing.T) {
+	s := domain.Session{Name: "api", WindowsCount: 1, LastActivity: time.Now()}
+	line := formatSessionLine(s, "")
+	if strings.Contains(line, "[black:") {
+		t.Errorf("no tag chips expected when Tags empty: %q", line)
+	}
+}
+
+func TestFormatSessionLineTagsTruncated(t *testing.T) {
+	s := domain.Session{
+		Name: "api", WindowsCount: 1, LastActivity: time.Now(),
+		Tags: []string{"a", "b", "c", "d"},
+	}
+	line := formatSessionLine(s, "")
+	if !strings.Contains(line, "["+colorDim+"]+2[-]") {
+		t.Errorf("expected +2 overflow marker: %q", line)
+	}
+}
