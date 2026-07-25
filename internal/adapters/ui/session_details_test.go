@@ -91,13 +91,14 @@ func TestDetailsRenderPinnedFalse(t *testing.T) {
 
 func TestDetailsRenderLastAttached(t *testing.T) {
 	d := NewSessionDetails()
-	d.Render(domain.Session{Name: "api", WindowsCount: 1, LastAttached: time.Now().Add(-5 * time.Minute)})
+	lastAtt := time.Date(2026, 7, 25, 14, 8, 0, 0, time.UTC)
+	d.Render(domain.Session{Name: "api", WindowsCount: 1, LastAttached: lastAtt})
 	got := d.GetText(true)
 	if !strings.Contains(got, "last attached:") {
 		t.Errorf("last attached label missing: %q", got)
 	}
-	if !strings.Contains(got, "5m ago") {
-		t.Errorf("last attached relative time missing: %q", got)
+	if !strings.Contains(got, "2026-07-25 14:08") {
+		t.Errorf("last attached absolute time missing: %q", got)
 	}
 }
 

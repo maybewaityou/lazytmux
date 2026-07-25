@@ -61,7 +61,14 @@ func (d *SessionDetails) Render(s domain.Session) {
 	b.WriteString("[" + colorTitle + "::b]Basic Info[-]\n")
 	b.WriteString(detailField("created", s.Created.Format("2006-01-02 15:04")))
 	b.WriteString(detailField("activity", s.LastActivity.Format("2006-01-02 15:04")))
-	b.WriteString(detailField("last attached", humanizeDuration(s.LastAttached)))
+	// Absolute timestamp (matching created/activity format) — the list row
+	// keeps the relative "5m ago" form; details favours precision. Zero value
+	// renders "never", consistent with the list and humanizeDuration.
+	lastAttached := "never"
+	if !s.LastAttached.IsZero() {
+		lastAttached = s.LastAttached.Format("2006-01-02 15:04")
+	}
+	b.WriteString(detailField("last attached", lastAttached))
 	b.WriteString(detailField("attached", fmt.Sprintf("%d client(s)", s.AttachedCount)))
 	b.WriteString(detailField("windows", fmt.Sprintf("%d", s.WindowsCount)))
 	if s.Path != "" {
