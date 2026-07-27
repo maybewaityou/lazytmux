@@ -81,9 +81,11 @@ func NewMultiFieldSessionForm(title string) *MultiFieldSessionForm {
 		SetBackgroundColor(tcell.ColorDefault)
 	// fieldWidth 0 = expand to the form's width; the Note area is noteVisibleRows
 	// rows tall and unbounded in length (maxLength 0).
-	f.form.AddInputField("Name", "", 0, nil, nil).
-		AddInputField("Tags", "", 0, nil, nil).
-		AddTextArea("Note", "", 0, noteVisibleRows, 0, nil)
+	// Labels end with ":" — tview.Form pads one space after the label
+	// (maxLabelWidth++ in Form.Draw), so "Name:" renders as "Name: [field]".
+	f.form.AddInputField("Name:", "", 0, nil, nil).
+		AddInputField("Tags:", "", 0, nil, nil).
+		AddTextArea("Note:", "", 0, noteVisibleRows, 0, nil)
 	// Placeholders mirror the single-field forms so a field reads identically
 	// whether it is edited here or standalone: Tags = "comma-separated tags"
 	// (the Tags-only form), Note = "freeform note" (the Note-only form).
