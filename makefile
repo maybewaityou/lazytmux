@@ -1,5 +1,5 @@
 BINARY   := lazytmux
-VERSION  ?= v0.1.16
+VERSION  ?= v0.1.17
 COMMIT   := $(shell git rev-parse --short HEAD 2>/dev/null || echo "unknown")
 LDFLAGS  := -X main.version=$(VERSION) -X main.gitCommit=$(COMMIT)
 
