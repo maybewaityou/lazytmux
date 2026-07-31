@@ -31,7 +31,7 @@ var keyBindings = []KeyBinding{
 	{"Navigate", "←/→", "Focus list/details"},
 	{"Navigate", "Enter", "Enter session"},
 	{"Navigate", "q", "Quit"},
-	{"Session", "a", "New"},
+	{"Session", "a", "New & enter"},
 	{"Session", "e", "Edit"},
 	{"Session", "k", "Kill"},
 	{"Session", "d", "Detach"},

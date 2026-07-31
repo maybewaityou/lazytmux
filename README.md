@@ -193,7 +193,7 @@ make build-all
 | `↑↓`  | Navigate sessions                |
 | `←/→` | Focus list ↔ details             |
 | `Enter` | Enter session (`switch-client` / `attach`) |
-| `a`   | New session                             |
+| `a`   | New session & enter                             |
 | `e`   | Edit session (name, tags, note)         |
 | `d`   | Detach session (keeps it running)       |
 | `k`   | Kill session                            |
