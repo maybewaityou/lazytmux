@@ -24,6 +24,7 @@ import (
 	"github.com/rivo/tview"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
+	"github.com/maybewaityou/lazytmux/internal/core/ports"
 )
 
 const colorRed = "#f7768e"
@@ -66,21 +67,7 @@ func (t *tui) handleGlobalKeys(e *tcell.EventKey) *tcell.EventKey {
 		})
 		return nil
 	case 'a':
-		t.openMultiFieldSessionForm("New session", "", "", "", func(name, tags, note string) {
-			if err := t.serve.CreateSession(name); err != nil {
-				t.setStatusTemporary("[" + colorRed + "]Create failed[-]")
-				t.closeForm()
-				return
-			}
-			if parsed := parseTags(tags); len(parsed) > 0 {
-				_ = t.serve.SaveTags(name, parsed)
-			}
-			if note = strings.TrimSpace(note); note != "" {
-				_ = t.serve.SaveNote(name, note)
-			}
-			t.refresh()
-			t.closeForm()
-		})
+		t.openMultiFieldSessionForm("New session", "", "", "", t.createAndEnter)
 		return nil
 	case 'e':
 		t.actOnSelected(func(s domain.Session) {
@@ -387,6 +374,57 @@ func (t *tui) openMultiFieldSessionForm(title, initName, initTags, initNote stri
 		OnCancel(t.closeForm)
 	t.app.SetRoot(form.Primitive(), true)
 	t.app.SetFocus(form.Form())
+}
+
+// createAndEnterAction is the outcome of the 'a'-key create-then-enter flow.
+// planCreateAndEnter decides it purely from service results so the branching is
+// unit-testable headlessly; the handler only translates it into tview effects.
+type createAndEnterAction int
+
+const (
+	actCreateFailed createAndEnterAction = iota // CreateSession errored.
+	actEnterFailed                              // EnterSession errored, session was created.
+	actEntered                                  // success: entered the new session.
+)
+
+// planCreateAndEnter runs the service side of the 'a'-key flow: create the
+// session, best-effort persist tags/note, then enter it. It holds no tview
+// state and returns the outcome plus the failing error (nil on success) so the
+// call order and every branch are unit-testable without a live event loop.
+func planCreateAndEnter(svc ports.SessionService, name, tags, note string) (createAndEnterAction, error) {
+	if err := svc.CreateSession(name); err != nil {
+		return actCreateFailed, err
+	}
+	if parsed := parseTags(tags); len(parsed) > 0 {
+		_ = svc.SaveTags(name, parsed)
+	}
+	if note = strings.TrimSpace(note); note != "" {
+		_ = svc.SaveNote(name, note)
+	}
+	if err := svc.EnterSession(name); err != nil {
+		return actEnterFailed, err
+	}
+	return actEntered, nil
+}
+
+// createAndEnter is the 'a'-key submit flow: create the session, persist its
+// tags/note, then enter it, quitting the TUI on success (we are now inside the
+// new session). A create failure reuses the existing wording; an enter failure
+// (rare for a just-created session) refreshes the list so the new session is
+// visible and surfaces the error, leaving the user in the TUI to retry.
+func (t *tui) createAndEnter(name, tags, note string) {
+	act, err := planCreateAndEnter(t.serve, name, tags, note)
+	switch act {
+	case actCreateFailed:
+		t.setStatusTemporary("[" + colorRed + "]Create failed[-]")
+		t.closeForm()
+	case actEnterFailed:
+		t.refresh()
+		t.setStatusTemporary("[" + colorRed + "]Enter failed: " + err.Error() + "[-]")
+		t.closeForm()
+	case actEntered:
+		t.app.Stop()
+	}
 }
 
 // editNote opens a multi-line text-area modal to edit the selected session's

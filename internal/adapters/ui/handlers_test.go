@@ -15,6 +15,7 @@
 package ui
 
 import (
+	"errors"
 	"strings"
 	"sync"
 	"testing"
@@ -347,5 +348,80 @@ func TestSearchInputUpdatesDetailsToFirstMatch(t *testing.T) {
 	}
 	if strings.Contains(got, "alpha") {
 		t.Errorf("details should no longer show the pre-search selection 'alpha', got %q", got)
+	}
+}
+
+// fakeCreateEnterServe records the create-and-enter flow's service calls so the
+// call order and every branch can be asserted headlessly. It embeds the service
+// interface the way staleTestServe does; methods the flow never calls stay nil.
+type fakeCreateEnterServe struct {
+	ports.SessionService
+	createErr error
+	enterErr  error
+	calls     []string
+}
+
+func (f *fakeCreateEnterServe) CreateSession(name string) error {
+	f.calls = append(f.calls, "create:"+name)
+	return f.createErr
+}
+
+func (f *fakeCreateEnterServe) SaveTags(name string, _ []string) error {
+	f.calls = append(f.calls, "save-tags:"+name)
+	return nil
+}
+
+func (f *fakeCreateEnterServe) SaveNote(name, _ string) error {
+	f.calls = append(f.calls, "save-note:"+name)
+	return nil
+}
+
+func (f *fakeCreateEnterServe) EnterSession(name string) error {
+	f.calls = append(f.calls, "enter:"+name)
+	return f.enterErr
+}
+
+// TestPlanCreateAndEnter locks the 'a'-key flow's service call order and every
+// branch. planCreateAndEnter is pure (no tview state), so success / create-fail
+// / enter-fail are all unit-testable headlessly; the handler only maps the
+// outcome to UI side effects and is exercised manually.
+func TestPlanCreateAndEnter(t *testing.T) {
+	// Success: create -> save-tags -> save-note -> enter, in that order.
+	ok := &fakeCreateEnterServe{}
+	act, err := planCreateAndEnter(ok, "work", "proj, urgent", "a note")
+	if act != actEntered || err != nil {
+		t.Fatalf("success: act=%v err=%v, want actEntered/<nil>", act, err)
+	}
+	wantCalls := "create:work,save-tags:work,save-note:work,enter:work"
+	if got := strings.Join(ok.calls, ","); got != wantCalls {
+		t.Errorf("success calls=%q, want %q", got, wantCalls)
+	}
+
+	// Empty/whitespace tags and note are skipped (no save-* calls).
+	skip := &fakeCreateEnterServe{}
+	if act, _ := planCreateAndEnter(skip, "work", "  , ", "  "); act != actEntered {
+		t.Errorf("empty meta: act=%v, want actEntered", act)
+	}
+	if got, want := strings.Join(skip.calls, ","), "create:work,enter:work"; got != want {
+		t.Errorf("empty meta calls=%q, want %q", got, want)
+	}
+
+	// Create failure short-circuits: enter is never called.
+	boom := errors.New("boom")
+	cf := &fakeCreateEnterServe{createErr: boom}
+	act, err = planCreateAndEnter(cf, "work", "t", "n")
+	if act != actCreateFailed || !errors.Is(err, boom) {
+		t.Errorf("create fail: act=%v err=%v, want actCreateFailed/boom", act, err)
+	}
+	if got := strings.Join(cf.calls, ","); got != "create:work" {
+		t.Errorf("create fail calls=%q, want only create:work", got)
+	}
+
+	// Enter failure: create + metadata ran, enter errored.
+	nope := errors.New("nope")
+	ef := &fakeCreateEnterServe{enterErr: nope}
+	act, err = planCreateAndEnter(ef, "work", "t", "n")
+	if act != actEnterFailed || !errors.Is(err, nope) {
+		t.Errorf("enter fail: act=%v err=%v, want actEnterFailed/nope", act, err)
 	}
 }
