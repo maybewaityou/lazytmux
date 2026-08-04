@@ -20,7 +20,7 @@ lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 
 ### 会话管理
 - 📜 列出本地 tmux server 上的会话,带实时状态与窗口数。
-- ➕ 从 UI 创建新会话。
+- ➕ 从 UI 创建新会话；如果当前 tmux server 已加载 [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect)，lazytmux 会立即保存一份恢复快照。
 - ✏️ 就地编辑会话(名称、标签、备注)。
 - 🗑️ 安全地杀死(kill)会话。
 - 🔌 分离(detach)会话,让其在后台继续运行。
@@ -47,9 +47,11 @@ lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进
 
 - 所有操作(列出、创建、重命名、杀死、分离、挂载)都通过 `tmux` CLI 执行 —— lazytmux 从不直接连接 tmux server。
 
-- 你的 `~/.tmux.conf` 和现有会话永远不会被 lazytmux 读取或修改。
+- lazytmux 不会读取或修改你的 tmux 配置；插件集成通过当前 tmux server 的运行时 option 自动发现。
 
-- lazytmux 唯一会写入的是它自己的状态:置顶(pin)与标签(tag)存放在 `~/.lazytmux/metadata.json`,日志写入 `~/.lazytmux/lazytmux.log`。写入是原子的,因此即使进程崩溃也不会留下写了一半的元数据文件。
+- 置顶、标签和备注存放在 `~/.lazytmux/metadata.json`，日志写入 `~/.lazytmux/lazytmux.log`。元数据写入是原子的，因此即使进程崩溃也不会留下写了一半的文件。
+
+- **可选的重启恢复：**当前 server 已加载 `tmux-resurrect` 时，新建会话会同步触发其配置的保存脚本；未安装插件时，创建行为与之前完全一致。重启后的恢复仍由你自己的 resurrect/continuum 配置控制（例如 `@continuum-restore 'on'`）。Resurrect 能恢复 tmux 会话、窗口、窗格、布局、工作目录和受支持的命令，但不能恢复进程内存、实时网络连接或编辑器中未落盘的内容。
 
 ---
 
@@ -230,9 +232,9 @@ make build-all
 ```
 cmd/main.go                       → cobra 根命令,装配依赖 + tmux 存在性检查
 internal/core/domain/             → Session / Window 领域模型
-internal/core/ports/              → SessionRepository / SessionService / MetadataStore
+internal/core/ports/              → SessionRepository / SessionSnapshotter / SessionService / MetadataStore
 internal/core/services/           → 业务逻辑
-internal/adapters/tmuxcli/        → tmux CLI 适配器(解析 list-sessions -F 输出)
+internal/adapters/tmuxcli/        → tmux CLI + 可选的 tmux-resurrect 快照适配器
 internal/adapters/data/metadata   → ~/.lazytmux/metadata.json(置顶 / 标签)
 internal/adapters/ui/             → tview TUI(Tokyo Night)
 internal/logger/                  → zap → ~/.lazytmux/lazytmux.log

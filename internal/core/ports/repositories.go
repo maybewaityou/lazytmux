@@ -41,6 +41,13 @@ type SessionRepository interface {
 	CurrentSession() (name string, ok bool)
 }
 
+// SessionSnapshotter best-effort persists tmux state after a session is created.
+// Implementations diagnose their own failures so snapshotting cannot turn a
+// successful tmux state change into a misleading CreateSession error.
+type SessionSnapshotter interface {
+	SaveSession(name string)
+}
+
 // ErrSuspendRequired signals that the caller must suspend the TUI and run an
 // interactive attach out-of-band (used when $TMUX is unset).
 var ErrSuspendRequired = errSentinel("suspend required for interactive attach")

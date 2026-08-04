@@ -23,15 +23,21 @@ import (
 )
 
 type service struct {
-	repo    ports.SessionRepository
-	meta    ports.MetadataStore
-	suspend ports.SuspendFunc
+	repo        ports.SessionRepository
+	meta        ports.MetadataStore
+	snapshotter ports.SessionSnapshotter
+	suspend     ports.SuspendFunc
 }
 
 // NewSessionService builds the business-logic service. suspend is wired
 // positionally for tests; main.go uses SetSuspend after constructing the TUI.
-func NewSessionService(repo ports.SessionRepository, meta ports.MetadataStore, suspend ports.SuspendFunc) ports.SessionService {
-	return &service{repo: repo, meta: meta, suspend: suspend}
+func NewSessionService(
+	repo ports.SessionRepository,
+	meta ports.MetadataStore,
+	snapshotter ports.SessionSnapshotter,
+	suspend ports.SuspendFunc,
+) ports.SessionService {
+	return &service{repo: repo, meta: meta, snapshotter: snapshotter, suspend: suspend}
 }
 
 // SetSuspend wires the TUI's suspend function after construction.
@@ -60,7 +66,16 @@ func (s *service) LoadWindows(sess *domain.Session) error {
 	return nil
 }
 
-func (s *service) CreateSession(name string) error { return s.repo.CreateSession(name) }
+func (s *service) CreateSession(name string) error {
+	if err := s.repo.CreateSession(name); err != nil {
+		return err
+	}
+	if s.snapshotter != nil {
+		s.snapshotter.SaveSession(name)
+	}
+	return nil
+}
+
 func (s *service) KillSession(name string) error   { return s.repo.KillSession(name) }
 func (s *service) DetachSession(name string) error { return s.repo.DetachSession(name) }
 func (s *service) RenameSession(o, n string) error {

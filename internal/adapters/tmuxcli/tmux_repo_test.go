@@ -34,8 +34,10 @@ func TestListSessions(t *testing.T) {
 	if len(got) != 1 || got[0].Name != "main" {
 		t.Fatalf("unexpected sessions: %+v", got)
 	}
-	wantArgs := []string{"list-sessions", "-F",
-		"#{session_id}|#{session_name}|#{session_attached}|#{session_created}|#{session_activity}|#{session_windows}|#{session_path}"}
+	wantArgs := []string{
+		"list-sessions", "-F",
+		"#{session_id}|#{session_name}|#{session_attached}|#{session_created}|#{session_activity}|#{session_windows}|#{session_path}",
+	}
 	for i, a := range wantArgs {
 		if runner.LastArgs[i] != a {
 			t.Errorf("arg %d: got %q want %q", i, runner.LastArgs[i], a)

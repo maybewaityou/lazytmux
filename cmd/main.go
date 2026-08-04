@@ -68,13 +68,14 @@ func main() {
 	metaPath := filepath.Join(home, ".lazytmux", "metadata.json")
 
 	repo := tmuxcli.NewRepository(runner)
+	snapshotter := tmuxcli.NewResurrectSnapshotter(runner, home, log)
 	metaStore, err := metadata.NewStore(metaPath)
 	if err != nil {
 		log.Errorw("metadata store", "error", err)
 		os.Exit(1)
 	}
 
-	svc := services.NewSessionService(repo, metaStore, nil)
+	svc := services.NewSessionService(repo, metaStore, snapshotter, nil)
 	t := ui.NewTUI(log, svc, version, gitCommit)
 
 	// Break the tui<->service cycle: hand the TUI's suspend function to the

@@ -20,7 +20,7 @@ With lazytmux, you can list, search, sort, pin, tag, create, edit, kill, detach,
 
 ### Session Management
 - 📜 List sessions from the local tmux server with live status and window counts.
-- ➕ Create new sessions from the UI.
+- ➕ Create new sessions from the UI; if the current tmux server has [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) loaded, lazytmux immediately saves a recovery snapshot.
 - ✏️ Edit sessions (name, tags, note) in place.
 - 🗑️ Kill sessions safely.
 - 🔌 Detach sessions (keep them running in the background).
@@ -47,9 +47,11 @@ lazytmux does not introduce any new risks. It is simply a TUI wrapper around you
 
 - All operations (list, create, rename, kill, detach, attach) are executed through the `tmux` CLI — lazytmux never talks to the tmux server directly.
 
-- Your `~/.tmux.conf` and existing sessions are never read or modified by lazytmux.
+- Your tmux configuration is never read or modified by lazytmux. Plugin integration is discovered from the current tmux server's runtime options.
 
-- The only thing lazytmux writes is its own state: pins and tags live in `~/.lazytmux/metadata.json`, and logs go to `~/.lazytmux/lazytmux.log`. Writes are atomic, so a crashed run never leaves a half-written metadata file.
+- Pins, tags, and notes live in `~/.lazytmux/metadata.json`, and logs go to `~/.lazytmux/lazytmux.log`. Metadata writes are atomic, so a crashed run never leaves a half-written file.
+
+- **Optional restart recovery:** when `tmux-resurrect` is loaded, creating a session triggers its configured save script synchronously. Without the plugin, creation works exactly as before. Restoring after reboot remains controlled by your own resurrect/continuum configuration (for example `@continuum-restore 'on'`). Resurrect restores tmux sessions, windows, panes, layouts, working directories, and supported commands — not process memory, live network connections, or unsaved editor state.
 
 ---
 
@@ -232,9 +234,9 @@ Hexagonal (ports & adapters):
 ```
 cmd/main.go                       → cobra root, wires deps + tmux presence check
 internal/core/domain/             → Session / Window models
-internal/core/ports/              → SessionRepository / SessionService / MetadataStore
+internal/core/ports/              → SessionRepository / SessionSnapshotter / SessionService / MetadataStore
 internal/core/services/           → business logic
-internal/adapters/tmuxcli/        → tmux CLI adapter (parses list-sessions -F output)
+internal/adapters/tmuxcli/        → tmux CLI + optional tmux-resurrect snapshot adapter
 internal/adapters/data/metadata   → ~/.lazytmux/metadata.json (pins/tags)
 internal/adapters/ui/             → tview TUI (Tokyo Night)
 internal/logger/                  → zap → ~/.lazytmux/lazytmux.log
