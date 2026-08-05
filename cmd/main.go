@@ -20,6 +20,7 @@ import (
 	"path/filepath"
 
 	"github.com/spf13/cobra"
+	"go.uber.org/zap"
 
 	"github.com/maybewaityou/lazytmux/internal/adapters/data/metadata"
 	"github.com/maybewaityou/lazytmux/internal/adapters/tmuxcli"
@@ -36,10 +37,23 @@ var (
 )
 
 func main() {
+	root := &cobra.Command{
+		Use:          ui.AppName,
+		Short:        "Lazy tmux session picker TUI",
+		SilenceUsage: true,
+	}
+	root.RunE = func(*cobra.Command, []string) error { return runTUI() }
+	root.AddCommand(newKillHelperCommand())
+	if err := root.Execute(); err != nil {
+		_, _ = fmt.Fprintln(os.Stderr, err)
+		os.Exit(1)
+	}
+}
+
+func runTUI() error {
 	log, err := logger.New("LAZYTMUX")
 	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+		return err
 	}
 	//nolint:errcheck // log.Sync may return an error which is safe to ignore here
 	defer log.Sync()
@@ -55,27 +69,20 @@ func main() {
 
 	runner := tmuxcli.NewRunner()
 	if err := runner.LookPath(); err != nil {
-		fmt.Fprintln(os.Stderr, "lazytmux requires `tmux` on your PATH.")
-		os.Exit(1)
+		return fmt.Errorf("lazytmux requires `tmux` on your PATH")
 	}
-
 	home, err := os.UserHomeDir()
 	if err != nil {
-		log.Errorw("failed to get user home directory", "error", err)
-		//nolint:gocritic // exitAfterDefer: ensure immediate exit on unrecoverable error
-		os.Exit(1)
+		return fmt.Errorf("get user home directory: %w", err)
 	}
-	metaPath := filepath.Join(home, ".lazytmux", "metadata.json")
+	metaStore, err := metadata.NewStore(filepath.Join(home, ".lazytmux", "metadata.json"))
+	if err != nil {
+		return fmt.Errorf("metadata store: %w", err)
+	}
 
 	repo := tmuxcli.NewRepository(runner)
-	snapshotter := tmuxcli.NewResurrectSnapshotter(runner, home, log)
-	metaStore, err := metadata.NewStore(metaPath)
-	if err != nil {
-		log.Errorw("metadata store", "error", err)
-		os.Exit(1)
-	}
-
-	svc := services.NewSessionService(repo, metaStore, snapshotter, nil)
+	persistence := tmuxcli.NewResurrectPersistence(runner, home, log)
+	svc := services.NewSessionService(repo, metaStore, persistence, persistence, nil)
 	t := ui.NewTUI(log, svc, version, gitCommit)
 
 	// Break the tui<->service cycle: hand the TUI's suspend function to the
@@ -85,18 +92,31 @@ func main() {
 			setter.SetSuspend(suspender.Suspend)
 		}
 	}
+	return t.Run()
+}
 
-	root := &cobra.Command{
-		Use:   ui.AppName,
-		Short: "Lazy tmux session picker TUI",
+func newKillHelperCommand() *cobra.Command {
+	return &cobra.Command{
+		Use:    "__resurrect-kill-helper",
+		Hidden: true,
+		Args:   cobra.NoArgs,
 		RunE: func(*cobra.Command, []string) error {
-			return t.Run()
+			return runKillHelper()
 		},
 	}
-	root.SilenceUsage = true
+}
 
-	if err := root.Execute(); err != nil {
-		_, _ = fmt.Fprintln(os.Stderr, err)
-		os.Exit(1)
+func runKillHelper() error {
+	result := os.NewFile(3, "lazytmux-kill-helper-result")
+	if result == nil {
+		return fmt.Errorf("kill helper result fd is unavailable")
 	}
+	defer func() { _ = result.Close() }()
+	log, err := logger.New("LAZYTMUX_HELPER")
+	if err != nil {
+		log = zap.NewNop().Sugar()
+	}
+	//nolint:errcheck // helper logging is best-effort after its primary kill
+	defer log.Sync()
+	return tmuxcli.RunResurrectKillHelper(os.Stdin, result, log)
 }

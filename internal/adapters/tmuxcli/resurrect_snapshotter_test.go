@@ -188,7 +188,10 @@ func TestResurrectSnapshotterWarnsWhenScriptFails(t *testing.T) {
 
 	dir := t.TempDir()
 	script := executableFile(t, dir)
-	tmux := &queuedRunner{responses: []runnerResponse{{output: []byte(script)}}}
+	tmux := &queuedRunner{responses: []runnerResponse{
+		{output: []byte(script)},
+		{output: []byte(dir)},
+	}}
 	executable := &fakeExecutableRunner{err: errors.New("exit status 1: disk full")}
 	logger := &fakeWarningLogger{}
 	snapshotter := newResurrectSnapshotter(tmux, executable, t.TempDir(), logger)
@@ -315,7 +318,7 @@ func TestResurrectSnapshotterWithRealPlugin(t *testing.T) {
 	t.Setenv("TMUX", socketPath+","+strings.TrimSpace(string(pid))+",0")
 	logger := &fakeWarningLogger{}
 	snapshotter := NewResurrectSnapshotter(runner, t.TempDir(), logger)
-	svc := services.NewSessionService(NewRepository(runner), nil, snapshotter, nil)
+	svc := services.NewSessionService(NewRepository(runner), nil, snapshotter, nil, nil)
 
 	if err := svc.CreateSession(session); err != nil {
 		t.Fatalf("create session through service: %v", err)

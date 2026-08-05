@@ -22,7 +22,7 @@ With lazytmux, you can list, search, sort, pin, tag, create, edit, kill, detach,
 - 📜 List sessions from the local tmux server with live status and window counts.
 - ➕ Create new sessions from the UI; if the current tmux server has [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) loaded, lazytmux immediately saves a recovery snapshot.
 - ✏️ Edit sessions (name, tags, note) in place.
-- 🗑️ Kill sessions safely.
+- 🗑️ Kill sessions safely. When tmux-resurrect is loaded, lazytmux reconciles its recovery state: remaining sessions are snapshotted immediately, while deleting the final session removes only the active `last` pointer and preserves timestamped history.
 - 🔌 Detach sessions (keep them running in the background).
 - 📌 Pin / unpin favorites to keep them at the top.
 - 🏷️ Tag sessions to group and find them later.
@@ -51,7 +51,9 @@ lazytmux does not introduce any new risks. It is simply a TUI wrapper around you
 
 - Pins, tags, and notes live in `~/.lazytmux/metadata.json`, and logs go to `~/.lazytmux/lazytmux.log`. Metadata writes are atomic, so a crashed run never leaves a half-written file.
 
-- **Optional restart recovery:** when `tmux-resurrect` is loaded, creating a session triggers its configured save script synchronously. Without the plugin, creation works exactly as before. Restoring after reboot remains controlled by your own resurrect/continuum configuration (for example `@continuum-restore 'on'`). Resurrect restores tmux sessions, windows, panes, layouts, working directories, and supported commands — not process memory, live network connections, or unsaved editor state.
+- **Optional restart recovery:** when `tmux-resurrect` is loaded, creating a session triggers its configured save script synchronously. Killing a session also reconciles recovery state: if sessions remain, a verified snapshot is saved without the deleted session; if the final session is killed, lazytmux unlinks only resurrect's active `last` pointer and keeps every timestamped history file available for manual recovery. Without the plugin, create/kill work exactly as before. Restoring after reboot remains controlled by your own resurrect/continuum configuration (for example `@continuum-restore 'on'`). Resurrect restores tmux sessions, windows, panes, layouts, working directories, and supported commands — not process memory, live network connections, or unsaved editor state.
+
+  Reconciliation is best-effort and coordinates concurrent lazytmux instances. External manual/continuum saves do not share lazytmux's lock, and multiple tmux servers should use separate `@resurrect-dir` values to avoid sharing one `last` pointer.
 
 ---
 

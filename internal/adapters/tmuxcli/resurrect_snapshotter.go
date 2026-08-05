@@ -21,7 +21,9 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"strings"
+	"time"
 
 	"github.com/maybewaityou/lazytmux/internal/core/ports"
 )
@@ -63,6 +65,7 @@ type resurrectSnapshotter struct {
 	executable executableRunner
 	home       string
 	logger     WarningLogger
+	launcher   helperLauncher
 }
 
 // NewResurrectSnapshotter returns an optional tmux-resurrect persistence
@@ -77,7 +80,7 @@ func newResurrectSnapshotter(
 	executable executableRunner,
 	home string,
 	logger WarningLogger,
-) ports.SessionSnapshotter {
+) *resurrectSnapshotter {
 	return &resurrectSnapshotter{
 		tmux:       runner,
 		executable: executable,
@@ -91,13 +94,24 @@ func (s *resurrectSnapshotter) SaveSession(name string) {
 	if !available {
 		return
 	}
-	if err := s.executable.Run(script, "quiet"); err != nil {
-		s.warn(name, "run save script", err)
-		return
-	}
 	dir, err := s.snapshotDir()
 	if err != nil {
 		s.warn(name, "resolve snapshot directory", err)
+		return
+	}
+	lock, err := acquireResurrectLock(s.home, dir)
+	if err != nil {
+		s.warn(name, "lock snapshot directory", err)
+		return
+	}
+	defer func() {
+		if err := lock.Close(); err != nil {
+			s.warn(name, "unlock snapshot directory", err)
+		}
+	}()
+	waitPastLastSnapshotSecond(filepath.Join(dir, "last"), time.Now, time.Sleep)
+	if err := s.executable.Run(script, "quiet"); err != nil {
+		s.warn(name, "run save script", err)
 		return
 	}
 	if err := verifySnapshot(filepath.Join(dir, "last"), name); err != nil {
@@ -154,10 +168,28 @@ func (s *resurrectSnapshotter) snapshotDir() (string, error) {
 	if err != nil {
 		return "", fmt.Errorf("resolve hostname: %w", err)
 	}
-	dir = strings.ReplaceAll(dir, "$HOME", s.home)
-	dir = strings.ReplaceAll(dir, "$HOSTNAME", hostname)
-	dir = strings.ReplaceAll(dir, "~", s.home)
+	dir = expandResurrectDir(dir, s.home, hostname)
+	if !filepath.IsAbs(dir) {
+		return "", fmt.Errorf("resurrect directory is not absolute: %s", dir)
+	}
+	if strings.Contains(dir, "$") {
+		return "", fmt.Errorf("resurrect directory contains an unsupported variable: %s", dir)
+	}
 	return filepath.Clean(dir), nil
+}
+
+func expandResurrectDir(dir, home, hostname string) string {
+	dir = strings.ReplaceAll(dir, "${HOME}", home)
+	dir = strings.ReplaceAll(dir, "$HOME", home)
+	dir = strings.ReplaceAll(dir, "${HOSTNAME}", hostname)
+	dir = strings.ReplaceAll(dir, "$HOSTNAME", hostname)
+	if dir == "~" {
+		return home
+	}
+	if strings.HasPrefix(dir, "~/") {
+		return filepath.Join(home, strings.TrimPrefix(dir, "~/"))
+	}
+	return dir
 }
 
 func defaultResurrectDir(home string) string {
@@ -172,24 +204,78 @@ func defaultResurrectDir(home string) string {
 	return filepath.Join(dataHome, "tmux", "resurrect")
 }
 
-func verifySnapshot(path, sessionName string) error {
+type snapshotSummary struct {
+	sessionsWithPanes   map[string]struct{}
+	sessionsWithWindows map[string]struct{}
+}
+
+func parseSnapshot(path string) (snapshotSummary, error) {
 	file, err := os.Open(path)
 	if err != nil {
-		return fmt.Errorf("open resurrect last snapshot: %w", err)
+		return snapshotSummary{}, fmt.Errorf("open resurrect snapshot: %w", err)
 	}
 	defer func() { _ = file.Close() }()
 
+	summary := snapshotSummary{
+		sessionsWithPanes:   make(map[string]struct{}),
+		sessionsWithWindows: make(map[string]struct{}),
+	}
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
 		fields := strings.Split(scanner.Text(), "\t")
-		if len(fields) >= 2 && (fields[0] == "pane" || fields[0] == "window") && fields[1] == sessionName {
-			return nil
+		if len(fields) < 2 || fields[1] == "" {
+			continue
+		}
+		switch fields[0] {
+		case "pane":
+			summary.sessionsWithPanes[fields[1]] = struct{}{}
+		case "window":
+			summary.sessionsWithWindows[fields[1]] = struct{}{}
 		}
 	}
 	if err := scanner.Err(); err != nil {
-		return fmt.Errorf("read resurrect last snapshot: %w", err)
+		return snapshotSummary{}, fmt.Errorf("read resurrect snapshot: %w", err)
+	}
+	return summary, nil
+}
+
+func (s snapshotSummary) sessions() []string {
+	result := make([]string, 0, len(s.sessionsWithPanes)+len(s.sessionsWithWindows))
+	for name := range s.sessionsWithPanes {
+		result = append(result, name)
+	}
+	for name := range s.sessionsWithWindows {
+		if !slices.Contains(result, name) {
+			result = append(result, name)
+		}
+	}
+	return result
+}
+
+func verifySnapshot(path, sessionName string) error {
+	summary, err := parseSnapshot(path)
+	if err != nil {
+		return err
+	}
+	if slices.Contains(summary.sessions(), sessionName) {
+		return nil
 	}
 	return fmt.Errorf("session %q is absent from resurrect last snapshot", sessionName)
+}
+
+func verifyDeletedSnapshot(path, deletedName string, liveSessions []string) error {
+	summary, err := parseSnapshot(path)
+	if err != nil {
+		return err
+	}
+	sessions := summary.sessions()
+	if slices.Contains(sessions, deletedName) {
+		return fmt.Errorf("deleted session %q remains in resurrect last snapshot", deletedName)
+	}
+	if len(sessions) == 0 || !sameSessionSet(sessions, liveSessions) {
+		return fmt.Errorf("resurrect last snapshot sessions %v do not match live sessions %v", sessions, liveSessions)
+	}
+	return nil
 }
 
 func (s *resurrectSnapshotter) warn(name, stage string, err error) {

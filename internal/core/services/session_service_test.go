@@ -45,11 +45,6 @@ func (f *fakeRepo) CreateSession(name string) error {
 	return f.createErr
 }
 
-func (f *fakeRepo) KillSession(name string) error {
-	f.calls = append(f.calls, "kill:"+name)
-	return nil
-}
-
 func (f *fakeRepo) DetachSession(name string) error {
 	f.calls = append(f.calls, "detach:"+name)
 	return nil
@@ -81,6 +76,16 @@ type fakeSnapshotter struct {
 
 func (f fakeSnapshotter) SaveSession(name string) {
 	*f.calls = append(*f.calls, "snapshot:"+name)
+}
+
+type fakeTerminator struct {
+	calls *[]string
+	err   error
+}
+
+func (f fakeTerminator) KillSession(name string) error {
+	*f.calls = append(*f.calls, "terminate:"+name)
+	return f.err
 }
 
 type fakeMeta struct {
@@ -137,7 +142,7 @@ func (m *fakeMeta) Rename(oldName, newName string) error {
 func TestCreateSessionSavesSnapshotAfterCreating(t *testing.T) {
 	repo := &fakeRepo{}
 	snapshotter := fakeSnapshotter{calls: &repo.calls}
-	svc := NewSessionService(repo, newFakeMeta(), snapshotter, nil)
+	svc := NewSessionService(repo, newFakeMeta(), snapshotter, nil, nil)
 
 	if err := svc.CreateSession("work"); err != nil {
 		t.Fatalf("CreateSession: %v", err)
@@ -151,7 +156,7 @@ func TestCreateSessionSavesSnapshotAfterCreating(t *testing.T) {
 func TestCreateSessionSkipsSnapshotWhenCreateFails(t *testing.T) {
 	createErr := errors.New("create failed")
 	repo := &fakeRepo{createErr: createErr}
-	svc := NewSessionService(repo, newFakeMeta(), fakeSnapshotter{calls: &repo.calls}, nil)
+	svc := NewSessionService(repo, newFakeMeta(), fakeSnapshotter{calls: &repo.calls}, nil, nil)
 
 	if err := svc.CreateSession("work"); !errors.Is(err, createErr) {
 		t.Fatalf("CreateSession error = %v, want %v", err, createErr)
@@ -163,10 +168,35 @@ func TestCreateSessionSkipsSnapshotWhenCreateFails(t *testing.T) {
 }
 
 func TestCreateSessionAllowsNilSnapshotter(t *testing.T) {
-	svc := NewSessionService(&fakeRepo{}, newFakeMeta(), nil, nil)
+	svc := NewSessionService(&fakeRepo{}, newFakeMeta(), nil, nil, nil)
 
 	if err := svc.CreateSession("work"); err != nil {
 		t.Fatalf("CreateSession: %v", err)
+	}
+}
+
+func TestKillSessionUsesTerminator(t *testing.T) {
+	calls := []string{}
+	terminator := fakeTerminator{calls: &calls}
+	svc := NewSessionService(&fakeRepo{}, newFakeMeta(), nil, terminator, nil)
+
+	if err := svc.KillSession("work"); err != nil {
+		t.Fatalf("KillSession: %v", err)
+	}
+	want := []string{"terminate:work"}
+	if !slices.Equal(calls, want) {
+		t.Fatalf("KillSession calls = %v, want %v", calls, want)
+	}
+}
+
+func TestKillSessionReturnsTerminatorError(t *testing.T) {
+	killErr := errors.New("kill failed")
+	calls := []string{}
+	terminator := fakeTerminator{calls: &calls, err: killErr}
+	svc := NewSessionService(&fakeRepo{}, newFakeMeta(), nil, terminator, nil)
+
+	if err := svc.KillSession("work"); !errors.Is(err, killErr) {
+		t.Fatalf("KillSession error = %v, want %v", err, killErr)
 	}
 }
 
@@ -177,7 +207,7 @@ func TestListSessionsInjectsMetadata(t *testing.T) {
 	_ = meta.SetTags("dev", []string{"work"})
 	_ = meta.SetNote("dev", "dev box")
 
-	svc := NewSessionService(repo, meta, nil, nil)
+	svc := NewSessionService(repo, meta, nil, nil, nil)
 	got, err := svc.ListSessions()
 	if err != nil {
 		t.Fatalf("ListSessions: %v", err)
@@ -195,7 +225,7 @@ func TestListSessionsInjectsMetadata(t *testing.T) {
 
 func TestSaveNoteDelegates(t *testing.T) {
 	meta := newFakeMeta()
-	svc := NewSessionService(&fakeRepo{}, meta, nil, nil)
+	svc := NewSessionService(&fakeRepo{}, meta, nil, nil, nil)
 
 	if err := svc.SaveNote("api", "main service"); err != nil {
 		t.Fatalf("SaveNote: %v", err)
@@ -214,7 +244,7 @@ func TestSaveNoteDelegates(t *testing.T) {
 
 func TestEnterSessionSwitchesDirectly(t *testing.T) {
 	repo := &fakeRepo{enterErr: nil}
-	svc := NewSessionService(repo, newFakeMeta(), nil, nil)
+	svc := NewSessionService(repo, newFakeMeta(), nil, nil, nil)
 	if err := svc.EnterSession("main"); err != nil {
 		t.Fatalf("EnterSession: %v", err)
 	}
@@ -230,7 +260,7 @@ func TestEnterSessionSuspendsOnSignal(t *testing.T) {
 		attached = true
 		return fn()
 	}
-	svc := NewSessionService(repo, newFakeMeta(), nil, suspend)
+	svc := NewSessionService(repo, newFakeMeta(), nil, nil, suspend)
 	if err := svc.EnterSession("main"); err != nil {
 		t.Fatalf("EnterSession: %v", err)
 	}
@@ -244,7 +274,7 @@ func TestEnterSessionSuspendsOnSignal(t *testing.T) {
 
 func TestCurrentSessionDelegates(t *testing.T) {
 	repo := &fakeRepo{current: "work", currentOk: true}
-	svc := NewSessionService(repo, newFakeMeta(), nil, nil)
+	svc := NewSessionService(repo, newFakeMeta(), nil, nil, nil)
 
 	name, ok := svc.CurrentSession()
 	if !ok || name != "work" {
@@ -261,7 +291,7 @@ func TestCurrentSessionDelegates(t *testing.T) {
 func TestDetachSessionDelegates(t *testing.T) {
 	repo := &fakeRepo{}
 	meta := newFakeMeta()
-	svc := NewSessionService(repo, meta, nil, nil)
+	svc := NewSessionService(repo, meta, nil, nil, nil)
 
 	if err := svc.DetachSession("work"); err != nil {
 		t.Fatalf("DetachSession: %v", err)
@@ -277,7 +307,7 @@ func TestDetachSessionDelegates(t *testing.T) {
 func TestRenameSessionMigratesMetadata(t *testing.T) {
 	repo := &fakeRepo{}
 	meta := newFakeMeta()
-	svc := NewSessionService(repo, meta, nil, nil)
+	svc := NewSessionService(repo, meta, nil, nil, nil)
 
 	if err := svc.RenameSession("foo", "bar"); err != nil {
 		t.Fatalf("RenameSession: %v", err)
@@ -293,7 +323,7 @@ func TestRenameSessionMigratesMetadata(t *testing.T) {
 func TestRenameSessionSkipsMetaOnRepoError(t *testing.T) {
 	repo := &fakeRepo{renameErr: errors.New("boom")}
 	meta := newFakeMeta()
-	svc := NewSessionService(repo, meta, nil, nil)
+	svc := NewSessionService(repo, meta, nil, nil, nil)
 
 	if err := svc.RenameSession("foo", "bar"); err == nil {
 		t.Fatal("expected error from repo")

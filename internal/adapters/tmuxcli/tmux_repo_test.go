@@ -94,7 +94,7 @@ func TestListWindows(t *testing.T) {
 	}
 }
 
-func TestCreateKillRename(t *testing.T) {
+func TestCreateRename(t *testing.T) {
 	runner := &FakeRunner{}
 	repo := NewRepository(runner)
 
@@ -103,13 +103,6 @@ func TestCreateKillRename(t *testing.T) {
 	}
 	if !equalArgs(runner.AllCalls[len(runner.AllCalls)-1], "new-session", "-d", "-s", "foo") {
 		t.Errorf("create args: %v", runner.AllCalls)
-	}
-
-	if err := repo.KillSession("foo"); err != nil {
-		t.Fatalf("KillSession: %v", err)
-	}
-	if !equalArgs(runner.AllCalls[len(runner.AllCalls)-1], "kill-session", "-t", "foo") {
-		t.Errorf("kill args: %v", runner.AllCalls)
 	}
 
 	if err := repo.RenameSession("foo", "bar"); err != nil {

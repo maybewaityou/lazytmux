@@ -21,7 +21,6 @@ type SessionRepository interface {
 	ListSessions() ([]domain.Session, error)
 	ListWindows(sessionName string) ([]domain.Window, error)
 	CreateSession(name string) error
-	KillSession(name string) error
 	// DetachSession disconnects the client attached to the named session via
 	// `tmux detach-client -s <name>`. The session itself keeps running. Unlike
 	// SwitchOrAttach, this targets the tmux server directly, so it works whether
@@ -46,6 +45,12 @@ type SessionRepository interface {
 // successful tmux state change into a misleading CreateSession error.
 type SessionSnapshotter interface {
 	SaveSession(name string)
+}
+
+// SessionTerminator performs the primary tmux kill and best-effort persistence
+// reconciliation. Its error reports only whether the primary kill succeeded.
+type SessionTerminator interface {
+	KillSession(name string) error
 }
 
 // ErrSuspendRequired signals that the caller must suspend the TUI and run an

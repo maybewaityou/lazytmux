@@ -16,6 +16,7 @@ package services
 
 import (
 	"errors"
+	"fmt"
 	"time"
 
 	"github.com/maybewaityou/lazytmux/internal/core/domain"
@@ -26,6 +27,7 @@ type service struct {
 	repo        ports.SessionRepository
 	meta        ports.MetadataStore
 	snapshotter ports.SessionSnapshotter
+	terminator  ports.SessionTerminator
 	suspend     ports.SuspendFunc
 }
 
@@ -35,9 +37,16 @@ func NewSessionService(
 	repo ports.SessionRepository,
 	meta ports.MetadataStore,
 	snapshotter ports.SessionSnapshotter,
+	terminator ports.SessionTerminator,
 	suspend ports.SuspendFunc,
 ) ports.SessionService {
-	return &service{repo: repo, meta: meta, snapshotter: snapshotter, suspend: suspend}
+	return &service{
+		repo:        repo,
+		meta:        meta,
+		snapshotter: snapshotter,
+		terminator:  terminator,
+		suspend:     suspend,
+	}
 }
 
 // SetSuspend wires the TUI's suspend function after construction.
@@ -76,7 +85,13 @@ func (s *service) CreateSession(name string) error {
 	return nil
 }
 
-func (s *service) KillSession(name string) error   { return s.repo.KillSession(name) }
+func (s *service) KillSession(name string) error {
+	if s.terminator == nil {
+		return fmt.Errorf("session terminator is unavailable")
+	}
+	return s.terminator.KillSession(name)
+}
+
 func (s *service) DetachSession(name string) error { return s.repo.DetachSession(name) }
 func (s *service) RenameSession(o, n string) error {
 	if err := s.repo.RenameSession(o, n); err != nil {
