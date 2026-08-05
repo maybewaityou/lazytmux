@@ -52,6 +52,16 @@ type tui struct {
 	allCache    []domain.Session
 	statusTimer *time.Timer
 
+	// loading is the active loading overlay, or nil when none is shown. It is
+	// touched only on the tview main loop — showLoading/hideLoading run there,
+	// and the spinner advance is routed through queueDraw — so it needs no mutex.
+	loading *LoadingOverlay
+	// loadingDone is closed to terminate the current overlay's spinner goroutine.
+	// nil means no spinner is running. See showLoading for why a done channel is
+	// used instead of Ticker.Stop alone (Ticker.Stop leaves the channel open and
+	// would leak the goroutine).
+	loadingDone chan struct{}
+
 	// selectionGen tags each selection change so an in-flight async window load
 	// can detect that a newer selection has superseded it (see loadWindowsAndRender).
 	selectionGen uint64

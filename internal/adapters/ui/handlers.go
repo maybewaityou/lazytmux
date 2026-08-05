@@ -412,19 +412,29 @@ func planCreateAndEnter(svc ports.SessionService, name, tags, note string) (crea
 // new session). A create failure reuses the existing wording; an enter failure
 // (rare for a just-created session) refreshes the list so the new session is
 // visible and surfaces the error, leaving the user in the TUI to retry.
+//
+// The work runs on a goroutine because CreateSession drives tmux-resurrect's
+// save.sh (a second or two); doing it inline blocked the event loop so the
+// loading overlay never painted. The overlay is shown first, and the result is
+// applied back on the main loop via queueDraw. hideLoading restores t.root, so
+// the failure branches no longer call closeForm themselves.
 func (t *tui) createAndEnter(name, tags, note string) {
-	act, err := planCreateAndEnter(t.serve, name, tags, note)
-	switch act {
-	case actCreateFailed:
-		t.setStatusTemporary("[" + colorRed + "]Create failed[-]")
-		t.closeForm()
-	case actEnterFailed:
-		t.refresh()
-		t.setStatusTemporary("[" + colorRed + "]Enter failed: " + err.Error() + "[-]")
-		t.closeForm()
-	case actEntered:
-		t.app.Stop()
-	}
+	t.showLoading("Creating session…")
+	go func() {
+		act, err := planCreateAndEnter(t.serve, name, tags, note)
+		t.queueDraw(func() {
+			t.hideLoading()
+			switch act {
+			case actCreateFailed:
+				t.setStatusTemporary("[" + colorRed + "]Create failed[-]")
+			case actEnterFailed:
+				t.refresh()
+				t.setStatusTemporary("[" + colorRed + "]Enter failed: " + err.Error() + "[-]")
+			case actEntered:
+				t.app.Stop()
+			}
+		})
+	}()
 }
 
 // editNote opens a multi-line text-area modal to edit the selected session's
@@ -478,6 +488,55 @@ func (t *tui) setStatusTemporary(msg string) {
 	t.statusTimer = time.AfterFunc(statusToastTimeout, func() {
 		t.app.QueueUpdateDraw(t.refreshStatusBarHints)
 	})
+}
+
+// showLoading displays the centered loading overlay and starts the spinner
+// animation. The overlay's InputCapture swallows all keys, blocking re-entry
+// into create/kill while the slow resurrect snapshot runs on a goroutine. The
+// caller runs that work asynchronously and calls hideLoading from a queueDraw
+// callback once it finishes.
+func (t *tui) showLoading(message string) {
+	t.loading = NewLoadingOverlay(message)
+	t.app.SetRoot(t.loading.Primitive(), true)
+
+	// Drive the spinner from its own goroutine, advancing one frame per tick.
+	// A done channel — not Ticker.Stop alone — is what ends the goroutine:
+	// time.Ticker.Stop leaves the channel open, so a `for range ticker.C` loop
+	// would block forever after stop. A classic goroutine leak avoided.
+	done := make(chan struct{})
+	t.loadingDone = done
+	ticker := time.NewTicker(spinnerPeriod)
+	go func() {
+		defer ticker.Stop()
+		for {
+			select {
+			case <-ticker.C:
+				// Route through queueDraw: the modal mutation must land on the main
+				// loop, and queueDraw is the overridable seam tests already inject.
+				t.queueDraw(func() {
+					if t.loading != nil {
+						t.loading.advance()
+					}
+				})
+			case <-done:
+				return
+			}
+		}
+	}()
+}
+
+// hideLoading stops the spinner, drops the overlay, and restores the main
+// layout. Idempotent: a no-op when no overlay is shown. Must run on the main
+// loop — it touches t.loading, t.loadingDone, and the root primitive — so
+// callers invoke it from inside a queueDraw callback.
+func (t *tui) hideLoading() {
+	if t.loadingDone != nil {
+		close(t.loadingDone)
+		t.loadingDone = nil
+	}
+	t.loading = nil
+	t.app.SetRoot(t.root, true)
+	t.focusList()
 }
 
 // refreshStatusBarHints restores the footer line appropriate for the current
@@ -552,7 +611,11 @@ func (t *tui) showKillConfirmModal(s domain.Session) {
 		}).
 		SetDoneFunc(func(buttonIndex int, _ string) {
 			if buttonIndex == 1 {
+				// killSession closes the modal itself and then shows the loading
+				// overlay, so we must not closeModal again here — doing so would
+				// reset root back to t.root and race the overlay.
 				t.killSession(s)
+				return
 			}
 			t.closeModal()
 		})
@@ -564,8 +627,8 @@ func (t *tui) showKillConfirmModal(s domain.Session) {
 			t.closeModal()
 			return nil
 		case 'k', 'K':
+			// killSession closes the modal itself; see SetDoneFunc above.
 			t.killSession(s)
-			t.closeModal()
 			return nil
 		}
 		return e
@@ -574,12 +637,27 @@ func (t *tui) showKillConfirmModal(s domain.Session) {
 }
 
 // killSession runs `tmux kill-session` and reports the outcome on the footer.
+//
+// KillSession drives the resurrect helper, which re-runs save.sh to reconcile
+// the snapshot after the kill — that takes a second or two and would freeze the
+// UI inline. The confirm modal is closed first, then loading overlays the main
+// layout for the duration; the result is applied back on the main loop via
+// queueDraw. hideLoading restores t.root, so there is no separate closeModal
+// after the goroutine completes.
 func (t *tui) killSession(s domain.Session) {
-	if err := t.serve.KillSession(s.Name); err == nil {
-		t.refresh()
-	} else {
-		t.setStatusTemporary("[" + colorRed + "]Kill failed[-]")
-	}
+	t.closeModal()
+	t.showLoading("Killing session…")
+	go func() {
+		err := t.serve.KillSession(s.Name)
+		t.queueDraw(func() {
+			t.hideLoading()
+			if err == nil {
+				t.refresh()
+			} else {
+				t.setStatusTemporary("[" + colorRed + "]Kill failed[-]")
+			}
+		})
+	}()
 }
 
 // closeModal restores the main layout after a modal dialog.
