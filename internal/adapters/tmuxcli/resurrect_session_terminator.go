@@ -237,13 +237,15 @@ func (l processHelperLauncher) Run(config killHelperConfig) (bool, error) {
 		_ = cmd.Wait()
 		return attempted, errors.New(frame.Error)
 	}
-	if err := decoder.Decode(&frame); err != nil {
-		_ = control.Close()
-		_ = cmd.Wait()
-		return attempted, nil
-	}
+	// Kill succeeded. The helper now runs reconciliation (tmux-resurrect's
+	// save.sh, typically 1-3s) and only then exits; waiting for it would keep
+	// the UI's loading overlay up for the whole snapshot rebuild even though the
+	// destructive action is already done. Return immediately instead, and reap
+	// the helper from a background goroutine so it does not become a zombie: the
+	// helper needs nothing more from us (it already received "go"), and its
+	// final "done" write lands on a closed result pipe and is ignored on its end.
+	go func() { _ = cmd.Wait() }()
 	_ = control.Close()
-	_ = cmd.Wait()
 	return attempted, nil
 }
 

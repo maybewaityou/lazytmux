@@ -354,9 +354,11 @@ func TestResurrectDeleteWithRealPlugin(t *testing.T) {
 	if err := adapter.KillSession("doomed"); err != nil {
 		t.Fatalf("kill doomed: %v", err)
 	}
-	if err := verifyDeletedSnapshot(filepath.Join(snapshotDir, "last"), "doomed", []string{"keeper"}); err != nil {
-		t.Fatalf("snapshot after deleting doomed: %v", err)
-	}
+	// KillSession returns as soon as the kill is done; the resurrect snapshot is
+	// reconciled by the helper in the background, so poll for the on-disk result.
+	waitUntil(t, func() error {
+		return verifyDeletedSnapshot(filepath.Join(snapshotDir, "last"), "doomed", []string{"keeper"})
+	})
 	lastTarget, err := os.Readlink(filepath.Join(snapshotDir, "last"))
 	if err != nil {
 		t.Fatalf("read last before final delete: %v", err)
@@ -366,9 +368,16 @@ func TestResurrectDeleteWithRealPlugin(t *testing.T) {
 	if err := adapter.KillSession("keeper"); err != nil {
 		t.Fatalf("kill keeper: %v", err)
 	}
-	if _, err := os.Lstat(filepath.Join(snapshotDir, "last")); !errors.Is(err, os.ErrNotExist) {
-		t.Fatalf("last should be absent after final delete: %v", err)
-	}
+	waitUntil(t, func() error {
+		_, statErr := os.Lstat(filepath.Join(snapshotDir, "last"))
+		if !errors.Is(statErr, os.ErrNotExist) {
+			if statErr == nil {
+				return errors.New("last still present after final delete")
+			}
+			return statErr
+		}
+		return nil
+	})
 	if _, err := os.Stat(historyPath); err != nil {
 		t.Fatalf("history should remain after final delete: %v", err)
 	}
@@ -476,6 +485,25 @@ func runSelfDeleteCase(t *testing.T, script, binary string, final bool) {
 		time.Sleep(50 * time.Millisecond)
 	}
 	t.Fatalf("self-delete reconciliation did not complete before deadline")
+}
+
+// waitUntil polls cond until it returns nil or the deadline elapses. The
+// deletion helper reconciles the resurrect snapshot in the background (after
+// KillSession has already returned), so integration tests must wait for that
+// best-effort save.sh run before asserting on the on-disk snapshot.
+func waitUntil(t *testing.T, cond func() error) {
+	t.Helper()
+	deadline := time.Now().Add(10 * time.Second)
+	var last error
+	for time.Now().Before(deadline) {
+		err := cond()
+		if err == nil {
+			return
+		}
+		last = err
+		time.Sleep(50 * time.Millisecond)
+	}
+	t.Fatalf("condition never met within deadline: %v", last)
 }
 
 func shellQuote(value string) string {
