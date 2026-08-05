@@ -20,9 +20,9 @@ lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 
 ### 会话管理
 - 📜 列出本地 tmux server 上的会话,带实时状态与窗口数。
-- ➕ 从 UI 创建新会话；如果当前 tmux server 已加载 [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect)，lazytmux 会立即保存一份恢复快照。
+- ➕ 从 UI 创建新会话；如果当前 tmux server 暴露了可用的 [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) 保存能力，lazytmux 会同步尝试保存一份 best-effort 恢复快照。
 - ✏️ 就地编辑会话(名称、标签、备注)。
-- 🗑️ 安全地杀死(kill)会话。已加载 tmux-resurrect 时，lazytmux 会同步更新恢复状态：仍有会话时立即保存新快照；删除最后一个会话时只移除活动 `last` 指针，保留所有时间戳历史。
+- 🗑️ 安全地杀死(kill)会话。resurrect 保存能力可用时，lazytmux 会以 best-effort 方式同步恢复状态：仍有会话时尝试保存新快照；删除最后一个会话时只移除活动 `last` 指针，保留所有时间戳历史。
 - 🔌 分离(detach)会话,让其在后台继续运行。
 - 📌 置顶 / 取消置顶常用会话,让它们始终排在顶部。
 - 🏷️ 给会话打标签,方便分组与查找。
@@ -45,15 +45,17 @@ lazytmux 把 lazyssh 的体验带到了你的 tmux server 上。
 
 lazytmux 不会引入任何新的风险。它仅仅是系统原生 `tmux` 二进制程序的一个 TUI 封装。
 
-- 所有操作(列出、创建、重命名、杀死、分离、挂载)都通过 `tmux` CLI 执行 —— lazytmux 从不直接连接 tmux server。
+- 主要会话操作(列出、创建、重命名、杀死、分离、挂载)都通过 `tmux` CLI 执行 —— lazytmux 从不直接连接 tmux server。可选的 resurrect 集成还会调用插件提供的保存脚本，并管理其活动 `last` 指针。
 
 - lazytmux 不会读取或修改你的 tmux 配置；插件集成通过当前 tmux server 的运行时 option 自动发现。
 
 - 置顶、标签和备注存放在 `~/.lazytmux/metadata.json`，日志写入 `~/.lazytmux/lazytmux.log`。元数据写入是原子的，因此即使进程崩溃也不会留下写了一半的文件。
 
-- **可选的重启恢复：**当前 server 已加载 `tmux-resurrect` 时，新建会话会同步触发其配置的保存脚本。删除会话也会同步更新恢复状态：仍有会话时保存不含删除项的新快照；删除最后一个会话时仅撤销 resurrect 的活动 `last` 指针，所有时间戳历史仍可用于手动恢复。未安装插件时，创建和删除行为与之前完全一致。重启后的恢复仍由你自己的 resurrect/continuum 配置控制（例如 `@continuum-restore 'on'`）。Resurrect 能恢复 tmux 会话、窗口、窗格、布局、工作目录和受支持的命令，但不能恢复进程内存、实时网络连接或编辑器中未落盘的内容。
+- **可选的重启恢复：**lazytmux 不会安装、更新或配置 tmux-resurrect / tmux-continuum；基础的会话创建和删除不依赖这些插件。每次创建或删除时，lazytmux 都会查询当前 server 的 `@resurrect-save-script-path` option，且只有该路径为绝对路径、常规文件并具有执行权限时，才启用快照协调。TPM 已将插件下载到磁盘并不代表当前 server 已加载它；单独安装 tmux-continuum 也不构成保存能力。
 
-  快照协调采用 best-effort，并会串行化多个 lazytmux 实例。外部手动保存和 continuum 不共享 lazytmux 的锁；多个 tmux server 应分别配置不同的 `@resurrect-dir`，避免共用同一个 `last` 指针。
+  能力可用时，新建会话会同步尝试生成并验证快照。tmux-resurrect 没有删除会话 API，因此删除后的恢复状态由 lazytmux 自行协调：仍有会话时尝试保存不含删除项的新快照；删除最后一个会话时只安全地撤销 resurrect 的活动 `last` 指针，并保留所有时间戳历史文件。能力不可用时，创建和删除使用普通 tmux 行为。插件配置或快照失败会写入 `~/.lazytmux/lazytmux.log`，不会把已经成功的主要创建/删除操作变成失败。
+
+  重启后的恢复仍由你自己的 resurrect/continuum 配置控制(例如 `@continuum-restore 'on'`)。Resurrect 能恢复 tmux 会话、窗口、窗格、布局、工作目录和受支持的命令，但不能恢复进程内存、实时网络连接或编辑器中未落盘的内容。快照协调会串行化多个 lazytmux 实例，但外部手动保存和 continuum 不共享 lazytmux 的锁；多个 tmux server 应分别配置不同的 `@resurrect-dir`，避免共用同一个 `last` 指针。
 
 ---
 
@@ -234,7 +236,7 @@ make build-all
 ```
 cmd/main.go                       → cobra 根命令,装配依赖 + tmux 存在性检查
 internal/core/domain/             → Session / Window 领域模型
-internal/core/ports/              → SessionRepository / SessionSnapshotter / SessionService / MetadataStore
+internal/core/ports/              → SessionRepository / SessionSnapshotter / SessionTerminator / SessionService / MetadataStore
 internal/core/services/           → 业务逻辑
 internal/adapters/tmuxcli/        → tmux CLI + 可选的 tmux-resurrect 快照适配器
 internal/adapters/data/metadata   → ~/.lazytmux/metadata.json(置顶 / 标签)

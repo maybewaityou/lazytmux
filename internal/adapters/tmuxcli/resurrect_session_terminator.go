@@ -122,27 +122,30 @@ func NewResurrectPersistence(runner CommandRunner, home string, logger WarningLo
 }
 
 func (s *resurrectSnapshotter) KillSession(name string) error {
-	config, available := s.discoverKillConfig(name)
-	if !available {
-		_, err := s.tmux.RunOutput("kill-session", "-t", name)
-		return err
+	capability := discoverResurrectCapability(s.tmux)
+	if capability.status == resurrectBroken {
+		s.warnDeletion(name, capability.stage, capability.err)
 	}
-	attempted, err := s.launcher.Run(config)
-	if attempted {
-		return err
+	if capability.status == resurrectReady {
+		if config, available := s.discoverKillConfig(name, capability); available {
+			attempted, err := s.launcher.Run(config)
+			if attempted {
+				return err
+			}
+			if err != nil {
+				s.warnDeletion(name, "start-helper", err)
+			}
+		}
 	}
-	if err != nil {
-		s.warnDeletion(name, "start-helper", err)
-	}
-	_, directErr := s.tmux.RunOutput("kill-session", "-t", name)
-	return directErr
+
+	_, err := s.tmux.RunOutput("kill-session", "-t", name)
+	return err
 }
 
-func (s *resurrectSnapshotter) discoverKillConfig(name string) (killHelperConfig, bool) {
-	script, available := s.saveScript(name)
-	if !available {
-		return killHelperConfig{}, false
-	}
+func (s *resurrectSnapshotter) discoverKillConfig(
+	name string,
+	capability resurrectCapability,
+) (killHelperConfig, bool) {
 	dir, err := s.snapshotDir()
 	if err != nil {
 		s.warnDeletion(name, "resolve-directory", err)
@@ -173,7 +176,7 @@ func (s *resurrectSnapshotter) discoverKillConfig(name string) (killHelperConfig
 		TmuxPath:    tmuxPath,
 		SocketPath:  fields[0],
 		ServerPID:   fields[1],
-		SaveScript:  script,
+		SaveScript:  capability.saveScript,
 		SnapshotDir: dir,
 		Home:        s.home,
 		Environment: os.Environ(),

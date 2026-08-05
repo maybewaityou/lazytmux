@@ -78,6 +78,13 @@ func (l *fakeWarningLogger) Warnw(message string, fields ...any) {
 	l.entries = append(l.entries, warningEntry{message: message, fields: slices.Clone(fields)})
 }
 
+func assertRunnerCalls(t *testing.T, runner *queuedRunner, want [][]string) {
+	t.Helper()
+	if !slices.EqualFunc(runner.calls, want, slices.Equal[[]string]) {
+		t.Fatalf("tmux calls = %v, want %v", runner.calls, want)
+	}
+}
+
 func TestResurrectSnapshotterSavesAndVerifiesTargetSession(t *testing.T) {
 	t.Parallel()
 
@@ -98,9 +105,7 @@ func TestResurrectSnapshotterSavesAndVerifiesTargetSession(t *testing.T) {
 		{"show-options", "-gqv", "@resurrect-save-script-path"},
 		{"show-options", "-gqv", "@resurrect-dir"},
 	}
-	if !slices.EqualFunc(tmux.calls, wantTmux, slices.Equal[[]string]) {
-		t.Fatalf("tmux calls = %v, want %v", tmux.calls, wantTmux)
-	}
+	assertRunnerCalls(t, tmux, wantTmux)
 	wantExec := []executableCall{{path: script, args: []string{"quiet"}}}
 	if !slices.EqualFunc(executable.calls, wantExec, equalExecutableCall) {
 		t.Fatalf("executable calls = %v, want %v", executable.calls, wantExec)

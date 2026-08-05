@@ -20,9 +20,9 @@ With lazytmux, you can list, search, sort, pin, tag, create, edit, kill, detach,
 
 ### Session Management
 - 📜 List sessions from the local tmux server with live status and window counts.
-- ➕ Create new sessions from the UI; if the current tmux server has [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) loaded, lazytmux immediately saves a recovery snapshot.
+- ➕ Create new sessions from the UI; if the current tmux server exposes a usable [tmux-resurrect](https://github.com/tmux-plugins/tmux-resurrect) save capability, lazytmux synchronously attempts a best-effort recovery snapshot.
 - ✏️ Edit sessions (name, tags, note) in place.
-- 🗑️ Kill sessions safely. When tmux-resurrect is loaded, lazytmux reconciles its recovery state: remaining sessions are snapshotted immediately, while deleting the final session removes only the active `last` pointer and preserves timestamped history.
+- 🗑️ Kill sessions safely. When the resurrect save capability is available, lazytmux best-effort reconciles recovery state: remaining sessions are snapshotted, while deleting the final session removes only the active `last` pointer and preserves timestamped history.
 - 🔌 Detach sessions (keep them running in the background).
 - 📌 Pin / unpin favorites to keep them at the top.
 - 🏷️ Tag sessions to group and find them later.
@@ -45,15 +45,17 @@ With lazytmux, you can list, search, sort, pin, tag, create, edit, kill, detach,
 
 lazytmux does not introduce any new risks. It is simply a TUI wrapper around your system's native `tmux` binary.
 
-- All operations (list, create, rename, kill, detach, attach) are executed through the `tmux` CLI — lazytmux never talks to the tmux server directly.
+- All primary session operations (list, create, rename, kill, detach, attach) are executed through the `tmux` CLI — lazytmux never talks to the tmux server directly. Optional resurrect integration also invokes the plugin-provided save script and manages its active `last` pointer.
 
 - Your tmux configuration is never read or modified by lazytmux. Plugin integration is discovered from the current tmux server's runtime options.
 
 - Pins, tags, and notes live in `~/.lazytmux/metadata.json`, and logs go to `~/.lazytmux/lazytmux.log`. Metadata writes are atomic, so a crashed run never leaves a half-written file.
 
-- **Optional restart recovery:** when `tmux-resurrect` is loaded, creating a session triggers its configured save script synchronously. Killing a session also reconciles recovery state: if sessions remain, a verified snapshot is saved without the deleted session; if the final session is killed, lazytmux unlinks only resurrect's active `last` pointer and keeps every timestamped history file available for manual recovery. Without the plugin, create/kill work exactly as before. Restoring after reboot remains controlled by your own resurrect/continuum configuration (for example `@continuum-restore 'on'`). Resurrect restores tmux sessions, windows, panes, layouts, working directories, and supported commands — not process memory, live network connections, or unsaved editor state.
+- **Optional restart recovery:** lazytmux does not install, update, or configure tmux-resurrect or tmux-continuum. Basic session creation and deletion never require either plugin. For each create/kill operation, lazytmux queries the current server's `@resurrect-save-script-path` option and enables snapshot coordination only when it names an absolute, regular, executable file. A plugin directory downloaded by TPM is not enough unless that plugin is loaded into the current server; tmux-continuum alone is not a save capability.
 
-  Reconciliation is best-effort and coordinates concurrent lazytmux instances. External manual/continuum saves do not share lazytmux's lock, and multiple tmux servers should use separate `@resurrect-dir` values to avoid sharing one `last` pointer.
+  When the capability is ready, creating a session synchronously attempts a verified snapshot. tmux-resurrect has no session-deletion API, so lazytmux coordinates deletion itself: if sessions remain, it attempts to save a snapshot without the deleted session; if the final session is killed, it safely unlinks only resurrect's active `last` pointer and preserves every timestamped history file. Without the capability, create/kill use the normal tmux behavior. Configuration or snapshot failures are logged to `~/.lazytmux/lazytmux.log` and never turn a successful primary create/kill into a failure.
+
+  Restoring after reboot remains controlled by your own resurrect/continuum configuration (for example `@continuum-restore 'on'`). Resurrect restores tmux sessions, windows, panes, layouts, working directories, and supported commands — not process memory, live network connections, or unsaved editor state. Snapshot reconciliation coordinates concurrent lazytmux instances, but external manual/continuum saves do not share lazytmux's lock, and multiple tmux servers should use separate `@resurrect-dir` values to avoid sharing one `last` pointer.
 
 ---
 
@@ -236,7 +238,7 @@ Hexagonal (ports & adapters):
 ```
 cmd/main.go                       → cobra root, wires deps + tmux presence check
 internal/core/domain/             → Session / Window models
-internal/core/ports/              → SessionRepository / SessionSnapshotter / SessionService / MetadataStore
+internal/core/ports/              → SessionRepository / SessionSnapshotter / SessionTerminator / SessionService / MetadataStore
 internal/core/services/           → business logic
 internal/adapters/tmuxcli/        → tmux CLI + optional tmux-resurrect snapshot adapter
 internal/adapters/data/metadata   → ~/.lazytmux/metadata.json (pins/tags)

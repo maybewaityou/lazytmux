@@ -23,6 +23,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/maybewaityou/lazytmux/internal/core/services"
 )
 
 type deletionTmux struct {
@@ -85,6 +87,38 @@ func (l *fakeHelperLauncher) Run(config killHelperConfig) (bool, error) {
 	return l.attempted, l.err
 }
 
+func TestResurrectPersistenceWithoutPluginPreservesPlainLifecycle(t *testing.T) {
+	t.Parallel()
+
+	tmux := &queuedRunner{responses: []runnerResponse{
+		{},
+		{output: []byte("\n")},
+		{output: []byte("\n")},
+		{},
+	}}
+	logger := &fakeWarningLogger{}
+	persistence := NewResurrectPersistence(tmux, t.TempDir(), logger)
+	service := services.NewSessionService(NewRepository(tmux), nil, persistence, persistence, nil)
+
+	if err := service.CreateSession("work"); err != nil {
+		t.Fatalf("CreateSession: %v", err)
+	}
+	if err := service.KillSession("work"); err != nil {
+		t.Fatalf("KillSession: %v", err)
+	}
+
+	want := [][]string{
+		{"new-session", "-d", "-s", "work"},
+		{"show-options", "-gqv", resurrectSavePathOption},
+		{"show-options", "-gqv", resurrectSavePathOption},
+		{"kill-session", "-t", "work"},
+	}
+	assertRunnerCalls(t, tmux, want)
+	if len(logger.entries) != 0 {
+		t.Fatalf("warnings = %v, want none", logger.entries)
+	}
+}
+
 func TestResurrectTerminatorFallsBackWhenPluginIsUnavailable(t *testing.T) {
 	tmux := &queuedRunner{responses: []runnerResponse{
 		{output: []byte("\n")},
@@ -101,12 +135,43 @@ func TestResurrectTerminatorFallsBackWhenPluginIsUnavailable(t *testing.T) {
 		{"show-options", "-gqv", resurrectSavePathOption},
 		{"kill-session", "-t", "doomed"},
 	}
-	if !slices.EqualFunc(tmux.calls, want, slices.Equal[[]string]) {
-		t.Fatalf("tmux calls = %v, want %v", tmux.calls, want)
-	}
+	assertRunnerCalls(t, tmux, want)
 	if len(launcher.configs) != 0 {
 		t.Fatalf("helper configs = %v, want none", launcher.configs)
 	}
+}
+
+func TestResurrectTerminatorFallsBackWhenPluginIsBroken(t *testing.T) {
+	t.Parallel()
+
+	killErr := errors.New("kill failed")
+	tmux := &queuedRunner{responses: []runnerResponse{
+		{output: []byte("relative-save.sh")},
+		{err: killErr},
+	}}
+	logger := &fakeWarningLogger{}
+	launcher := &fakeHelperLauncher{}
+	adapter := newResurrectSnapshotter(tmux, &fakeExecutableRunner{}, t.TempDir(), logger)
+	adapter.launcher = launcher
+
+	if err := adapter.KillSession("doomed"); !errors.Is(err, killErr) {
+		t.Fatalf("KillSession error = %v, want %v", err, killErr)
+	}
+	want := [][]string{
+		{"show-options", "-gqv", resurrectSavePathOption},
+		{"kill-session", "-t", "doomed"},
+	}
+	assertRunnerCalls(t, tmux, want)
+	if len(launcher.configs) != 0 {
+		t.Fatalf("helper configs = %v, want none", launcher.configs)
+	}
+	if len(logger.entries) != 1 {
+		t.Fatalf("warnings = %v, want one", logger.entries)
+	}
+	if logger.entries[0].message != "tmux-resurrect deletion reconciliation failed" {
+		t.Fatalf("warning message = %q, want deletion reconciliation warning", logger.entries[0].message)
+	}
+	assertWarning(t, logger, "validate save script", "doomed")
 }
 
 func TestResurrectTerminatorReturnsHelperPrimaryKillError(t *testing.T) {

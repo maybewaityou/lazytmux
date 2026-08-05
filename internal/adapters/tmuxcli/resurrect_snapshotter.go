@@ -90,10 +90,16 @@ func newResurrectSnapshotter(
 }
 
 func (s *resurrectSnapshotter) SaveSession(name string) {
-	script, available := s.saveScript(name)
-	if !available {
+	capability := discoverResurrectCapability(s.tmux)
+	switch capability.status {
+	case resurrectUnavailable:
 		return
+	case resurrectBroken:
+		s.warn(name, capability.stage, capability.err)
+		return
+	case resurrectReady:
 	}
+
 	dir, err := s.snapshotDir()
 	if err != nil {
 		s.warn(name, "resolve snapshot directory", err)
@@ -110,32 +116,13 @@ func (s *resurrectSnapshotter) SaveSession(name string) {
 		}
 	}()
 	waitPastLastSnapshotSecond(filepath.Join(dir, "last"), time.Now, time.Sleep)
-	if err := s.executable.Run(script, "quiet"); err != nil {
+	if err := s.executable.Run(capability.saveScript, "quiet"); err != nil {
 		s.warn(name, "run save script", err)
 		return
 	}
 	if err := verifySnapshot(filepath.Join(dir, "last"), name); err != nil {
 		s.warn(name, "verify snapshot", err)
 	}
-}
-
-func (s *resurrectSnapshotter) saveScript(name string) (string, bool) {
-	out, err := s.tmux.RunOutput("show-options", "-gqv", resurrectSavePathOption)
-	if err != nil {
-		if !isNoServerError(err) {
-			s.warn(name, "discover save script", err)
-		}
-		return "", false
-	}
-	script := strings.TrimSpace(string(out))
-	if script == "" {
-		return "", false
-	}
-	if err := validateSaveScript(script); err != nil {
-		s.warn(name, "validate save script", err)
-		return "", false
-	}
-	return script, true
 }
 
 func validateSaveScript(path string) error {
