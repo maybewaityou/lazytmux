@@ -106,9 +106,34 @@ func (t *tui) Run() error {
 
 // Suspend implements ports.SuspendFunc for out-of-tmux attach. It adapts
 // tview's Suspend(func()) bool to the func()-returns-error shape the service uses.
+//
+// Once the `tmux attach` subprocess returns, the user has left the session
+// (detached, exited, killed — or, rarely, the session vanished and attach
+// failed fast). In every one of those cases lazytmux is done: the Enter handler
+// quits the app regardless, so we Stop *now*, from inside the suspend callback,
+// unconditionally on return. tview's Suspend then sees the screen was finalized
+// during the callback and skips the Resume() it would otherwise perform. That
+// Resume is pure waste here (re-enter the alt screen, hide the cursor, enable
+// mouse, clear, … only for Stop/Fini to tear it straight back down), and the
+// needless engage→disengage burst right at exit was confirmed to leave some
+// real terminals with a screen mode half-restored, so the shell looked frozen
+// until the user hit Ctrl-C. Stopping from inside the callback makes the attach
+// path exit like a plain quit: one disengage, no spurious re-engagement.
+//
+// We Stop whether the subprocess reported success or failure: a non-zero exit
+// is how tmux signals a normal session-end (e.g. exiting the last window) on
+// some configs, not necessarily an error, and even a genuine attach failure
+// already prints its cause to the terminal via tmux's own stderr. Note this
+// only covers the case where `tmux attach` returns at all; if the session
+// persists (other windows/panes still alive) the subprocess blocks until the
+// user detaches, which is correct — they are still inside tmux.
 func (t *tui) Suspend(fn func() error) error {
 	var runErr error
-	if !t.app.Suspend(func() { runErr = fn() }) {
+	if !t.app.Suspend(func() {
+		runErr = fn()
+		t.logger.Infow("attach subprocess returned", "err", runErr)
+		t.app.Stop()
+	}) {
 		return fmt.Errorf("failed to suspend TUI for attach")
 	}
 	return runErr
